@@ -1,6 +1,7 @@
 // index.js - Main application entry point
 
 import { isoCountries } from "./countries.js";
+import { isoLanguages } from "./languages.js";
 import { debounce } from "./utils.js";
 import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js";
 import { initializeMap, getMap, displayLocationOnMap, displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener } from "./map-manager.js";
@@ -226,6 +227,16 @@ function initUI() {
   const biasCheckbox = document.getElementById("bias-checkbox");
   const typesSelect = document.getElementById("types-select");
   const languageSelect = document.getElementById("language-select");
+
+  // Populate language select from isoLanguages
+  if (languageSelect) {
+    isoLanguages.forEach(({ id, text }) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = `${text} (${id})`;
+      languageSelect.appendChild(option);
+    });
+  }
 
   // Initialize selectize for types
   if (typesSelect) {

@@ -1,0 +1,30 @@
+export const isoLanguages = [
+    // European
+    { id: "fr", text: "French" },
+    { id: "en", text: "English" },
+    { id: "de", text: "German" },
+    { id: "es", text: "Spanish" },
+    { id: "it", text: "Italian" },
+    { id: "pt", text: "Portuguese" },
+    { id: "nl", text: "Dutch" },
+    { id: "pl", text: "Polish" },
+    { id: "ru", text: "Russian" },
+    { id: "cs", text: "Czech" },
+    { id: "el", text: "Greek" },
+    { id: "ro", text: "Romanian" },
+    { id: "uk", text: "Ukrainian" },
+    { id: "ca", text: "Catalan" },
+    { id: "hr", text: "Croatian" },
+    { id: "bg", text: "Bulgarian" },
+    { id: "sk", text: "Slovak" },
+    { id: "sr", text: "Serbian" },
+    { id: "ga", text: "Irish" },
+    { id: "cy", text: "Welsh" },
+    // Asian
+    { id: "ja", text: "Japanese" },
+    { id: "zh", text: "Chinese" },
+    { id: "ko", text: "Korean" },
+    { id: "th", text: "Thai" },
+    // Other
+    { id: "ar", text: "Arabic" },
+];

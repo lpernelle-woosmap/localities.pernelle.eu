@@ -5,6 +5,31 @@ import { getTargetEnpoint } from "./endpoint_select.js";
 import { deepEqual } from "./diff-utils.js";
 
 /**
+ * Returns HTML for a copy-to-clipboard button
+ * @param {string} value - The value to copy
+ * @param {string} [title="Copy"] - Tooltip text
+ * @returns {string} HTML string
+ */
+function copyButton(value, title = "Copy") {
+  return `<button class="copy-btn absolute top-2 right-2 p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors" data-copy-value="${escapeHtml(value)}" title="${escapeHtml(title)}">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+    </svg>
+  </button>`;
+}
+
+/**
+ * Returns HTML for a copy-to-clipboard button for coordinates
+ * @param {string|number} lat
+ * @param {string|number} lng
+ * @returns {string} HTML string
+ */
+function coordsCopyButton(lat, lng) {
+  return copyButton(`${lat},${lng}`, "Copy coordinates");
+}
+
+/**
  * Renders search results in the UI
  * @param {Object} response - API response
  * @param {boolean} isProduction - Whether this is production results
@@ -156,18 +181,20 @@ export function displayLocationDetails(result) {
 
   if (result.public_id) {
     parts.push(`
-      <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+      <div class="relative bg-gray-50 p-3 rounded-lg border border-gray-200">
+        ${copyButton(result.public_id, "Copy Public ID")}
         <div class="text-xs text-gray-500 font-medium uppercase mb-1">Public ID</div>
-        <div class="text-sm text-gray-900 font-mono break-all">${escapeHtml(result.public_id)}</div>
+        <div class="text-sm text-gray-900 font-mono break-all pr-6">${escapeHtml(result.public_id)}</div>
       </div>
     `);
   }
 
   if (result.formatted_address) {
     parts.push(`
-      <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+      <div class="relative bg-blue-50 p-3 rounded-lg border border-blue-200">
+        ${copyButton(result.formatted_address, "Copy Formatted Address")}
         <div class="text-xs text-blue-700 font-medium uppercase mb-1">Formatted Address</div>
-        <div class="text-sm text-gray-900">${escapeHtml(result.formatted_address)}</div>
+        <div class="text-sm text-gray-900 pr-6">${escapeHtml(result.formatted_address)}</div>
       </div>
     `);
   }
@@ -233,8 +260,9 @@ export function displayLocationDetails(result) {
     const lat = result.geometry.location.lat.toString();
     const lng = result.geometry.location.lng.toString();
     parts.push(`
-      <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+      <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 relative">
         <div class="text-xs text-gray-500 font-medium uppercase mb-2">Coordinates</div>
+        ${coordsCopyButton(lat, lng)}
         <div class="grid grid-cols-2 gap-2 text-sm">
           <div>
             <div class="text-xs text-gray-500">Latitude</div>
@@ -250,7 +278,7 @@ export function displayLocationDetails(result) {
 
     if (result.address_components && result.address_components.length > 0) {
       const componentsHtml = result.address_components.map(compo => {
-        const type = escapeHtml(compo.types[0]);
+        const type = escapeHtml(compo.types[compo.types.length - 1]);
         const name = escapeHtml(compo.long_name);
         return `
           <div class="flex justify-between py-1 border-b border-gray-100 last:border-b-0">
@@ -280,6 +308,8 @@ export function displayLocationDetails(result) {
   if (placeholder) {
     placeholder.classList.add("hidden");
   }
+
+  attachCopyListeners(detailsHTML);
 
   // Attach click listeners for address buttons
   if (result.addresses?.list?.length > 0) {
@@ -376,8 +406,9 @@ function renderGeometryComparison(geomDiff, mainLabel, compareLabel) {
   if (mainLoc || compareLoc) {
     if (deepEqual(mainLoc, compareLoc)) {
       parts.push(`
-        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 relative">
           <div class="text-xs text-gray-500 font-medium uppercase mb-2">Coordinates</div>
+          ${coordsCopyButton(mainLoc.lat, mainLoc.lng)}
           <div class="grid grid-cols-2 gap-2 text-sm">
             <div>
               <div class="text-xs text-gray-500">Latitude</div>
@@ -392,8 +423,9 @@ function renderGeometryComparison(geomDiff, mainLabel, compareLabel) {
       `);
     } else {
       parts.push(`
-        <div class="p-3 rounded-lg border bg-yellow-50 border-yellow-300">
+        <div class="p-3 rounded-lg border bg-yellow-50 border-yellow-300 relative">
           <div class="text-xs text-gray-500 font-medium uppercase mb-2">Coordinates</div>
+          ${mainLoc ? coordsCopyButton(mainLoc.lat, mainLoc.lng) : ''}
           <div class="grid grid-cols-2 gap-2 text-sm">
             <div>
               <div class="text-xs font-semibold text-red-700 mb-1">${escapeHtml(mainLabel)}</div>
@@ -440,8 +472,9 @@ function renderGeometryNormal(geom) {
   }
 
   parts.push(`
-    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 relative">
       <div class="text-xs text-gray-500 font-medium uppercase mb-2">Coordinates</div>
+      ${coordsCopyButton(geom.location.lat, geom.location.lng)}
       <div class="grid grid-cols-2 gap-2 text-sm">
         <div>
           <div class="text-xs text-gray-500">Latitude</div>
@@ -477,9 +510,9 @@ function renderAddressComponentsComparison(acDiff, mainLabel, compareLabel) {
 
   // Build a map by type for comparison
   const mainByType = {};
-  mainComponents.forEach(c => { mainByType[c.types[0]] = c.long_name; });
+  mainComponents.forEach(c => { mainByType[c.types[c.types.length - 1]] = c.long_name; });
   const compareByType = {};
-  compareComponents.forEach(c => { compareByType[c.types[0]] = c.long_name; });
+  compareComponents.forEach(c => { compareByType[c.types[c.types.length - 1]] = c.long_name; });
 
   const allTypes = new Set([...Object.keys(mainByType), ...Object.keys(compareByType)]);
 
@@ -527,7 +560,7 @@ function renderAddressComponentsNormal(components) {
   if (!components || components.length === 0) return "";
 
   const rows = components.map(compo => {
-    const type = escapeHtml(compo.types[0]);
+    const type = escapeHtml(compo.types[compo.types.length - 1]);
     const name = escapeHtml(compo.long_name);
     return `
       <div class="flex justify-between py-1 border-b border-gray-100 last:border-b-0">
@@ -598,15 +631,17 @@ export function displayComparisonDetails(mainResult, compareResult, diff, mainLa
 
     if (fieldDiff.status === "same") {
       if (mainVal == null) continue;
+      const hasCopy = key === "public_id" || key === "formatted_address";
       const bgClass = key === "public_id"
-        ? "bg-gray-50 p-3 rounded-lg border border-gray-200"
+        ? "relative bg-gray-50 p-3 rounded-lg border border-gray-200"
         : key === "formatted_address"
-        ? "bg-blue-50 p-3 rounded-lg border border-blue-200"
+        ? "relative bg-blue-50 p-3 rounded-lg border border-blue-200"
         : "";
       parts.push(`
         <div class="${bgClass}">
+          ${hasCopy ? copyButton(String(mainVal), `Copy ${label}`) : ""}
           <div class="text-xs text-gray-500 font-medium uppercase mb-1">${label}</div>
-          <div class="text-sm text-gray-900${key === "public_id" ? " font-mono break-all" : ""}">${escapeHtml(String(mainVal))}</div>
+          <div class="text-sm text-gray-900${key === "public_id" ? " font-mono break-all" : ""}${hasCopy ? " pr-6" : ""}">${escapeHtml(String(mainVal))}</div>
         </div>
       `);
     } else {
@@ -631,6 +666,8 @@ export function displayComparisonDetails(mainResult, compareResult, diff, mainLa
   if (placeholder) {
     placeholder.classList.add("hidden");
   }
+
+  attachCopyListeners(detailsHTML);
 
   // Attach click listeners for address buttons
   if (mainResult.addresses?.list?.length > 0) {
@@ -690,6 +727,30 @@ function renderAddressesList(addresses) {
       <div class="flex flex-col gap-1.5">${buttons}</div>
     </div>
   `;
+}
+
+/**
+ * Attaches click listeners to all copy buttons in a container
+ * @param {HTMLElement} container - Container with copy buttons
+ */
+function attachCopyListeners(container) {
+  container.querySelectorAll(".copy-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const value = btn.getAttribute("data-copy-value");
+      navigator.clipboard.writeText(value).then(() => {
+        const svg = btn.querySelector("svg");
+        svg.outerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>`;
+        setTimeout(() => {
+          btn.querySelector("svg").outerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>`;
+        }, 1500);
+      });
+    });
+  });
 }
 
 /**

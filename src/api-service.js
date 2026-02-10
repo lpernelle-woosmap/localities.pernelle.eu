@@ -1,12 +1,21 @@
 // api-service.js - Unified API service for Woosmap Localities API
 
 import { buildQueryString } from "./utils.js";
-import { CONFIG } from "./config.js";
 import { getTargetEnvironment } from "./environment_select.js";
 import { getTargetEnpoint } from "./endpoint_select.js";
 
 const queryParams = new URLSearchParams(window.location.search);
-const lang = queryParams.get("language") || CONFIG.API.DEFAULT_LANGUAGE;
+const langFromUrl = queryParams.get("language");
+
+/**
+ * Returns the currently selected language, or empty string if none
+ * Priority: URL query param > select element > empty
+ */
+function getLanguage() {
+  if (langFromUrl) return langFromUrl;
+  const select = document.getElementById("language-select");
+  return select ? select.value : "";
+}
 
 /**
  * Shows error modal with message
@@ -28,11 +37,15 @@ function showErrorModal(messageHtml) {
  */
 function buildApiArgs({ input, components, types, extended, location, radius }) {
   const endpoint = getTargetEnpoint();
+  const lang = getLanguage();
   const args = {
     input,
-    language: lang,
     data: "advanced"
   };
+
+  if (lang) {
+    args.language = lang;
+  }
 
   if (extended) {
     args.extended = "postal_code";
@@ -120,11 +133,15 @@ export async function autocompleteSearch(params, env = null) {
  */
 export async function getDetails(publicId, fields, env = null) {
   const resolvedEnv = env || getTargetEnvironment();
+  const lang = getLanguage();
   const args = {
     key: resolvedEnv.woosmap_key,
-    language: lang,
     public_id: publicId
   };
+
+  if (lang) {
+    args.language = lang;
+  }
 
   if (fields) {
     args.fields = fields;
@@ -143,10 +160,15 @@ export async function getDetails(publicId, fields, env = null) {
  */
 export async function reverseGeocode(latlng, components, types) {
   const env = getTargetEnvironment();
+  const lang = getLanguage();
   const args = {
     key: env.woosmap_key,
     latlng: `${latlng.lat},${latlng.lng}`
   };
+
+  if (lang) {
+    args.language = lang;
+  }
 
   if (components) {
     args.components = components;

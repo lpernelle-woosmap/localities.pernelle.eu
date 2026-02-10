@@ -225,6 +225,7 @@ function initUI() {
   const extendedCheckbox = document.getElementById("extended-checkbox");
   const biasCheckbox = document.getElementById("bias-checkbox");
   const typesSelect = document.getElementById("types-select");
+  const languageSelect = document.getElementById("language-select");
 
   // Initialize selectize for types
   if (typesSelect) {
@@ -251,6 +252,14 @@ function initUI() {
       }, CONFIG.API.DEBOUNCE_DELAY)
     );
   }
+
+  // Click outside autocomplete results to close
+  document.addEventListener("click", (e) => {
+    const container = document.querySelector(".autocomplete-input-container");
+    if (container && !container.contains(e.target)) {
+      hideSearchResults();
+    }
+  });
 
   // Country selection dropdown
   const showCountriesList = () => {
@@ -284,6 +293,13 @@ function initUI() {
   if (biasCheckbox) {
     biasCheckbox.addEventListener("change", () => {
       biasEnabled = biasCheckbox.checked;
+      performSearch();
+    });
+  }
+
+  // Language select
+  if (languageSelect) {
+    languageSelect.addEventListener("change", () => {
       performSearch();
     });
   }

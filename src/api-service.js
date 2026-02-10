@@ -2,7 +2,7 @@
 
 import { buildQueryString } from "./utils.js";
 import { CONFIG } from "./config.js";
-import { getTargetEnvironment, getProdEnvironment } from "./environment_select.js";
+import { getTargetEnvironment } from "./environment_select.js";
 import { getTargetEnpoint } from "./endpoint_select.js";
 
 const queryParams = new URLSearchParams(window.location.search);
@@ -94,34 +94,34 @@ async function fetchApi(url, showErrors = false) {
 /**
  * Performs autocomplete/search request
  * @param {Object} params - Search parameters
- * @param {boolean} isProduction - Whether to use production environment
+ * @param {Object|null} env - Environment config to use (defaults to target environment)
  * @returns {Promise} API response
  */
-export async function autocompleteSearch(params, isProduction = false) {
-  const env = isProduction ? getProdEnvironment() : getTargetEnvironment();
+export async function autocompleteSearch(params, env = null) {
+  const resolvedEnv = env || getTargetEnvironment();
   const endpoint = getTargetEnpoint();
   const args = {
-    key: env.woosmap_key,
+    key: resolvedEnv.woosmap_key,
     ...buildApiArgs(params)
   };
 
-  const url = `${env.url}${endpoint}/?${buildQueryString(args)}`;
-  console.log(`autocompleteSearch (${isProduction ? 'prod' : 'dev'}) - args:`, args);
+  const url = `${resolvedEnv.url}${endpoint}/?${buildQueryString(args)}`;
+  console.log(`autocompleteSearch - args:`, args);
 
-  return fetchApi(url, isProduction);
+  return fetchApi(url, !env);
 }
 
 /**
  * Gets details for a specific locality
  * @param {string} publicId - Public ID of the locality
  * @param {string} fields - Fields to retrieve (pipe-separated)
- * @param {boolean} isProduction - Whether to use production environment
+ * @param {Object|null} env - Environment config to use (defaults to target environment)
  * @returns {Promise} API response
  */
-export async function getDetails(publicId, fields, isProduction = false) {
-  const env = isProduction ? getProdEnvironment() : getTargetEnvironment();
+export async function getDetails(publicId, fields, env = null) {
+  const resolvedEnv = env || getTargetEnvironment();
   const args = {
-    key: env.woosmap_key,
+    key: resolvedEnv.woosmap_key,
     language: lang,
     public_id: publicId
   };
@@ -130,8 +130,8 @@ export async function getDetails(publicId, fields, isProduction = false) {
     args.fields = fields;
   }
 
-  const url = `${env.url}details/?${buildQueryString(args)}`;
-  return fetchApi(url, !isProduction);
+  const url = `${resolvedEnv.url}details/?${buildQueryString(args)}`;
+  return fetchApi(url, !env);
 }
 
 /**

@@ -12,8 +12,8 @@ export const CONFIG = {
     },
     GESTURE_HANDLING: "greedy",
     MARKER_ICON: {
-      URL: "https://images.woosmap.com/dot-marker.png",
-      SCALED_SIZE: { height: 64, width: 46 }
+      URL: "marker-red.svg",
+      SCALED_SIZE: { height: 40, width: 40 }
     },
     POLYGON_STYLE: {
       STROKE_COLOR: "#b71c1c",
@@ -21,6 +21,17 @@ export const CONFIG = {
       STROKE_WEIGHT: 2,
       FILL_COLOR: "#b71c1c",
       FILL_OPACITY: 0.5
+    },
+    COMPARE_MARKER_ICON: {
+      URL: "marker-blue.svg",
+      SCALED_SIZE: { height: 40, width: 40 }
+    },
+    COMPARE_POLYGON_STYLE: {
+      STROKE_COLOR: "#1565C0",
+      STROKE_OPACITY: 0.8,
+      STROKE_WEIGHT: 2,
+      FILL_COLOR: "#1565C0",
+      FILL_OPACITY: 0.3
     },
     STYLES: [
       {

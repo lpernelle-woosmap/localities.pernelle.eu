@@ -3,8 +3,10 @@
 import { isoCountries } from "./countries.js";
 import { debounce } from "./utils.js";
 import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js";
-import { initializeMap, getMap, displayLocationOnMap, addMapClickListener } from "./map-manager.js";
-import { renderSearchResults, displayLocationDetails, hideSearchResults, clearSearchResults } from "./ui-manager.js";
+import { initializeMap, getMap, displayLocationOnMap, displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener } from "./map-manager.js";
+import { renderSearchResults, displayLocationDetails, displayComparisonDetails, hideSearchResults, clearSearchResults, onAddressClick } from "./ui-manager.js";
+import { computeDiff, coordinatesDiffer, viewportDiffers } from "./diff-utils.js";
+import { getCompareEnvironment, getTargetLabel, getCompareLabel } from "./environment_select.js";
 import { CONFIG } from "./config.js";
 
 // Application state
@@ -21,11 +23,58 @@ async function requestDetails(publicId) {
     .map(e => e.value)
     .join("|");
 
+  const compareEnv = getCompareEnvironment();
+
   try {
-    const response = await getDetails(publicId, fields, false);
-    if (response?.result) {
-      displayLocationDetails(response.result);
-      displayLocationOnMap(response.result);
+    // Always clear previous comparison markers
+    clearCompareLocationFromMap();
+
+    if (!compareEnv) {
+      // No comparison -- single env request
+      const response = await getDetails(publicId, fields);
+      if (response?.result) {
+        displayLocationDetails(response.result);
+        displayLocationOnMap(response.result);
+      }
+      return;
+    }
+
+    // Fetch from both environments in parallel
+    const [mainResponse, compareResponse] = await Promise.all([
+      getDetails(publicId, fields),
+      getDetails(publicId, fields, compareEnv).catch(() => null)
+    ]);
+
+    const mainResult = mainResponse?.result;
+    const compareResult = compareResponse?.result;
+
+    if (!mainResult) {
+      console.warn("No result from main environment");
+      return;
+    }
+
+    // Always show main result on map as primary
+    displayLocationOnMap(mainResult);
+
+    if (!compareResult) {
+      // Compare env returned nothing -- show main only
+      displayLocationDetails(mainResult);
+      return;
+    }
+
+    // Compare
+    const diff = computeDiff(mainResult, compareResult);
+
+    if (diff.identical) {
+      displayLocationDetails(mainResult);
+    } else {
+      const mainLbl = getTargetLabel();
+      const compareLbl = getCompareLabel();
+      displayComparisonDetails(mainResult, compareResult, diff, mainLbl, compareLbl);
+
+      if (coordinatesDiffer(diff) || viewportDiffers(diff)) {
+        displayCompareLocationOnMap(compareResult);
+      }
     }
   } catch (error) {
     console.error("Error fetching details:", error);
@@ -63,15 +112,26 @@ async function performSearch() {
     radius: biasEnabled ? CONFIG.API.GEOGRAPHICAL_BIAS_RADIUS : null
   };
 
-  // Perform both dev and prod searches in parallel
+  // Perform search, with optional comparison in parallel
+  const compareEnv = getCompareEnvironment();
   try {
-    const [devResponse, prodResponse] = await Promise.all([
-      autocompleteSearch(searchParams, false),
-      autocompleteSearch(searchParams, true)
-    ]);
+    const promises = [autocompleteSearch(searchParams)];
+    if (compareEnv) {
+      promises.push(autocompleteSearch(searchParams, compareEnv).catch(() => null));
+    }
 
-    renderSearchResults(devResponse, false, handleResultClick);
-    renderSearchResults(prodResponse, true, handleResultClick);
+    const [mainResponse, compareResponse] = await Promise.all(promises);
+
+    // Update headers with dynamic env names
+    const devHeader = document.getElementById("dev-header");
+    const prodHeader = document.getElementById("prod-header");
+    if (devHeader) devHeader.querySelector("span").textContent = getTargetLabel();
+    if (prodHeader) prodHeader.querySelector("span").textContent = compareEnv ? getCompareLabel() : "";
+
+    renderSearchResults(mainResponse, false, handleResultClick);
+    if (compareResponse) {
+      renderSearchResults(compareResponse, true, handleResultClick);
+    }
   } catch (error) {
     console.error("Error performing search:", error);
   }
@@ -310,6 +370,9 @@ const script = document.createElement("script");
 script.src = `${CONFIG.WOOSMAP.SDK_URL}?key=${CONFIG.WOOSMAP.SDK_KEY}&callback=initMap`;
 script.defer = true;
 document.head.appendChild(script);
+
+// Register address button click handler
+onAddressClick((publicId) => requestDetails(publicId));
 
 // Initialize UI when ready
 initUI();

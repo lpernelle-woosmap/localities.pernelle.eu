@@ -5,6 +5,8 @@ import { CONFIG } from "./config.js";
 let mapInstance = null;
 let detailsMarker = null;
 let viewportPolygon = null;
+let compareDetailsMarker = null;
+let compareViewportPolygon = null;
 
 /**
  * Initializes the Woosmap map
@@ -95,10 +97,93 @@ export function displayLocationOnMap(result) {
     position: markerPosition,
     icon: {
       url: CONFIG.MAP.MARKER_ICON.URL,
-      scaledSize: CONFIG.MAP.MARKER_ICON.SCALED_SIZE
+      scaledSize: new woosmap.map.Size(
+        CONFIG.MAP.MARKER_ICON.SCALED_SIZE.width,
+        CONFIG.MAP.MARKER_ICON.SCALED_SIZE.height
+      )
     }
   });
   detailsMarker.setMap(mapInstance);
+}
+
+/**
+ * Displays compare environment location on the map with a blue marker and optional viewport
+ * @param {Object} result - Location result with geometry
+ */
+export function displayCompareLocationOnMap(result) {
+  if (!mapInstance || !result.geometry) return;
+
+  const { lat, lng } = result.geometry.location;
+
+  // Clear previous compare polygon
+  if (compareViewportPolygon) {
+    compareViewportPolygon.setMap(null);
+    compareViewportPolygon = null;
+  }
+
+  // Display compare viewport if available
+  if (result.geometry.viewport) {
+    const { northeast, southwest } = result.geometry.viewport;
+    const shape = [
+      { lat: northeast.lat, lng: northeast.lng },
+      { lat: southwest.lat, lng: northeast.lng },
+      { lat: southwest.lat, lng: southwest.lng },
+      { lat: northeast.lat, lng: southwest.lng },
+      { lat: northeast.lat, lng: northeast.lng }
+    ];
+
+    compareViewportPolygon = new woosmap.map.Polygon({
+      paths: [shape],
+      strokeColor: CONFIG.MAP.COMPARE_POLYGON_STYLE.STROKE_COLOR,
+      strokeOpacity: CONFIG.MAP.COMPARE_POLYGON_STYLE.STROKE_OPACITY,
+      strokeWeight: CONFIG.MAP.COMPARE_POLYGON_STYLE.STROKE_WEIGHT,
+      fillColor: CONFIG.MAP.COMPARE_POLYGON_STYLE.FILL_COLOR,
+      fillOpacity: CONFIG.MAP.COMPARE_POLYGON_STYLE.FILL_OPACITY
+    });
+    compareViewportPolygon.setMap(mapInstance);
+  }
+
+  // Clear previous compare marker
+  if (compareDetailsMarker) {
+    compareDetailsMarker.setMap(null);
+    compareDetailsMarker = null;
+  }
+
+  // Create compare marker (blue)
+  compareDetailsMarker = new woosmap.map.Marker({
+    position: { lat, lng },
+    icon: {
+      url: CONFIG.MAP.COMPARE_MARKER_ICON.URL,
+      scaledSize: new woosmap.map.Size(
+        CONFIG.MAP.COMPARE_MARKER_ICON.SCALED_SIZE.width,
+        CONFIG.MAP.COMPARE_MARKER_ICON.SCALED_SIZE.height
+      )
+    }
+  });
+  compareDetailsMarker.setMap(mapInstance);
+
+  // Fit bounds to show both markers
+  if (detailsMarker) {
+    const mainPos = detailsMarker.getPosition();
+    const bounds = new woosmap.map.LatLngBounds();
+    bounds.extend({ lat: mainPos.lat(), lng: mainPos.lng() });
+    bounds.extend({ lat, lng });
+    mapInstance.fitBounds(bounds);
+  }
+}
+
+/**
+ * Clears compare marker and polygon from the map
+ */
+export function clearCompareLocationFromMap() {
+  if (compareDetailsMarker) {
+    compareDetailsMarker.setMap(null);
+    compareDetailsMarker = null;
+  }
+  if (compareViewportPolygon) {
+    compareViewportPolygon.setMap(null);
+    compareViewportPolygon = null;
+  }
 }
 
 /**

@@ -35,7 +35,7 @@ function showErrorModal(messageHtml) {
  * @param {Object} params - Request parameters
  * @returns {Object} API arguments
  */
-function buildApiArgs({ input, components, types, extended, location, radius }) {
+function buildApiArgs({ input, components, types, extended, location, radius, custom_description }) {
   const endpoint = getTargetEnpoint();
   const lang = getLanguage();
   const args = {
@@ -45,6 +45,10 @@ function buildApiArgs({ input, components, types, extended, location, radius }) 
 
   if (lang) {
     args.language = lang;
+  }
+
+  if (custom_description) {
+    args.custom_description = custom_description;
   }
 
   if (extended) {

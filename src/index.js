@@ -104,13 +104,16 @@ async function performSearch() {
     .join("|");
 
   const map = getMap();
+  const customDescriptionInput = document.getElementById("custom-description-input");
+  const customDescription = customDescriptionInput ? customDescriptionInput.value.trim() : "";
   const searchParams = {
     input: value,
     components,
     types,
     extended,
     location: biasEnabled && map ? map.getCenter() : null,
-    radius: biasEnabled ? CONFIG.API.GEOGRAPHICAL_BIAS_RADIUS : null
+    radius: biasEnabled ? CONFIG.API.GEOGRAPHICAL_BIAS_RADIUS : null,
+    custom_description: customDescription || null
   };
 
   // Perform search, with optional comparison in parallel
@@ -311,6 +314,14 @@ function initUI() {
   // Language select
   if (languageSelect) {
     languageSelect.addEventListener("change", () => {
+      performSearch();
+    });
+  }
+
+  // Custom description input
+  const customDescriptionInput = document.getElementById("custom-description-input");
+  if (customDescriptionInput) {
+    customDescriptionInput.addEventListener("change", () => {
       performSearch();
     });
   }

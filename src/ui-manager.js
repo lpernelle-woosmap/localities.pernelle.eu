@@ -113,12 +113,6 @@ function createResultItem(item, endpoint, isProduction) {
     formattedName = escapeHtml(item.description || "");
   }
 
-  // Add postal codes if available
-  if (item.postal_codes && item.postal_codes.length > 0) {
-    const postalCodes = item.postal_codes.map(escapeHtml).join(", ");
-    formattedName += ` <span class="text-blue-600 font-medium">(${postalCodes})</span>`;
-  }
-
   const typeClass = item.categories ? "category" : "type";
   const typeValue = item.categories
     ? escapeHtml(item.categories[0])

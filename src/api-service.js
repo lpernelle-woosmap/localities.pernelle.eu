@@ -35,7 +35,7 @@ function showErrorModal(messageHtml) {
  * @param {Object} params - Request parameters
  * @returns {Object} API arguments
  */
-function buildApiArgs({ input, components, types, extended, location, radius, custom_description }) {
+function buildApiArgs({ input, components, types, excluded_types, extended, location, radius, custom_description }) {
   const endpoint = getTargetEnpoint();
   const lang = getLanguage();
   const args = {
@@ -75,6 +75,10 @@ function buildApiArgs({ input, components, types, extended, location, radius, cu
 
   if (types) {
     args.types = types;
+  }
+
+  if (excluded_types) {
+    args.excluded_types = excluded_types;
   }
 
   return args;
@@ -162,7 +166,7 @@ export async function getDetails(publicId, fields, env = null) {
  * @param {string} types - Type restrictions
  * @returns {Promise} API response
  */
-export async function reverseGeocode(latlng, components, types) {
+export async function reverseGeocode(latlng, components, types, excluded_types) {
   const env = getTargetEnvironment();
   const lang = getLanguage();
   const args = {
@@ -180,6 +184,10 @@ export async function reverseGeocode(latlng, components, types) {
 
   if (types) {
     args.types = types;
+  }
+
+  if (excluded_types) {
+    args.excluded_types = excluded_types;
   }
 
   const url = `${env.url}geocode/?${buildQueryString(args)}`;

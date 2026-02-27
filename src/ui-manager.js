@@ -221,11 +221,11 @@ export function displayLocationDetails(result) {
   }
 
   if (result.types && result.types.length > 0) {
-    const typeText = escapeHtml(result.types[0].replace("_", " "));
+    const typeBadges = result.types.map(t => `<div class="text-sm text-gray-900 bg-green-100 text-green-800 inline-block px-2 py-1 rounded">${escapeHtml(t.replace("_", " "))}</div>`).join(" ");
     parts.push(`
       <div>
         <div class="text-xs text-gray-500 font-medium uppercase mb-1">Type</div>
-        <div class="text-sm text-gray-900 bg-green-100 text-green-800 inline-block px-2 py-1 rounded">${typeText}</div>
+        <div class="flex flex-wrap gap-1">${typeBadges}</div>
       </div>
     `);
   }
@@ -612,7 +612,7 @@ export function displayComparisonDetails(mainResult, compareResult, diff, mainLa
     { key: "title", label: "Title" },
     { key: "name", label: "Name" },
     { key: "description", label: "Description" },
-    { key: "types", label: "Type", transform: v => Array.isArray(v) && v.length > 0 ? v[0].replace("_", " ") : v },
+    { key: "types", label: "Type", transform: v => Array.isArray(v) && v.length > 0 ? v.map(t => t.replace("_", " ")).join(", ") : v },
     { key: "categories", label: "Category", transform: v => Array.isArray(v) && v.length > 0 ? v[0].replace("_", " ") : v }
   ];
 

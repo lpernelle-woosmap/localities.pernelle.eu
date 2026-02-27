@@ -96,10 +96,14 @@ async function performSearch() {
   }
 
   const typesSelect = document.getElementById("types-select");
+  const excludedTypesSelect = document.getElementById("excluded-types-select");
   const components = componentsRestriction
     .map(({ id }) => `country:${id}`)
     .join("|");
   const types = Array.from(typesSelect.selectedOptions)
+    .map(o => o.value)
+    .join("|");
+  const excluded_types = Array.from(excludedTypesSelect.selectedOptions)
     .map(o => o.value)
     .join("|");
 
@@ -110,6 +114,7 @@ async function performSearch() {
     input: value,
     components,
     types,
+    excluded_types,
     extended,
     location: biasEnabled && map ? map.getCenter() : null,
     radius: biasEnabled ? CONFIG.API.GEOGRAPHICAL_BIAS_RADIUS : null,
@@ -161,15 +166,19 @@ function handleResultClick(predictionId, name) {
  */
 async function handleMapClick(event) {
   const typesSelect = document.getElementById("types-select");
+  const excludedTypesSelect = document.getElementById("excluded-types-select");
   const components = componentsRestriction
     .map(({ id }) => `country:${id}`)
     .join("|");
   const types = Array.from(typesSelect.selectedOptions)
     .map(o => o.value)
     .join("|");
+  const excluded_types = Array.from(excludedTypesSelect.selectedOptions)
+    .map(o => o.value)
+    .join("|");
 
   try {
-    const response = await reverseGeocode(event.latlng, components, types);
+    const response = await reverseGeocode(event.latlng, components, types, excluded_types);
     if (response?.results?.[0]) {
       console.log("Reverse geocode result:", response.results[0].formatted_address);
       displayLocationDetails(response.results[0]);
@@ -229,6 +238,7 @@ function initUI() {
   const extendedCheckbox = document.getElementById("extended-checkbox");
   const biasCheckbox = document.getElementById("bias-checkbox");
   const typesSelect = document.getElementById("types-select");
+  const excludedTypesSelect = document.getElementById("excluded-types-select");
   const languageSelect = document.getElementById("language-select");
 
   // Populate language select from isoLanguages
@@ -244,6 +254,20 @@ function initUI() {
   // Initialize selectize for types
   if (typesSelect) {
     $(typesSelect).selectize({
+      create: true,
+      maxItems: null,
+      plugins: ["remove_button"],
+      sortField: {
+        field: "text",
+        direction: "asc"
+      },
+      dropdownParent: "body"
+    });
+  }
+
+  // Initialize selectize for excluded types
+  if (excludedTypesSelect) {
+    $(excludedTypesSelect).selectize({
       create: true,
       maxItems: null,
       plugins: ["remove_button"],

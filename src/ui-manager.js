@@ -514,7 +514,7 @@ function renderAddressComponentsComparison(acDiff, mainLabel, compareLabel) {
   for (const type of allTypes) {
     const mainName = mainByType[type];
     const compareName = compareByType[type];
-    const differs = mainName !== compareName;
+    const differs = !deepEqual(mainName, compareName);
 
     if (differs) {
       rows.push(`

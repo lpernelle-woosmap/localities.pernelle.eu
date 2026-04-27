@@ -5,7 +5,7 @@ import { isoLanguages } from "./languages.js";
 import { debounce } from "./utils.js";
 import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js";
 import { initializeMap, getMap, displayLocationOnMap, displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener } from "./map-manager.js";
-import { renderSearchResults, displayLocationDetails, displayComparisonDetails, hideSearchResults, clearSearchResults, onAddressClick } from "./ui-manager.js";
+import { renderSearchResults, renderSearchError, displayLocationDetails, displayComparisonDetails, displayCompareErrorBanner, hideSearchResults, clearSearchResults, onAddressClick } from "./ui-manager.js";
 import { computeDiff, coordinatesDiffer, viewportDiffers } from "./diff-utils.js";
 import { getCompareEnvironment, getTargetLabel, getCompareLabel } from "./environment_select.js";
 import { CONFIG } from "./config.js";
@@ -43,10 +43,11 @@ async function requestDetails(publicId) {
     // Fetch from both environments in parallel
     const [mainResponse, compareResponse] = await Promise.all([
       getDetails(publicId, fields),
-      getDetails(publicId, fields, compareEnv).catch(() => null)
+      getDetails(publicId, fields, compareEnv).catch((err) => ({ _error: err }))
     ]);
 
     const mainResult = mainResponse?.result;
+    const compareError = compareResponse?._error;
     const compareResult = compareResponse?.result;
 
     if (!mainResult) {
@@ -56,6 +57,13 @@ async function requestDetails(publicId) {
 
     // Always show main result on map as primary
     displayLocationOnMap(mainResult);
+
+    if (compareError) {
+      // Compare env failed (HTTP error or network) -- show main + visible error banner
+      displayLocationDetails(mainResult);
+      displayCompareErrorBanner(compareError, getCompareLabel());
+      return;
+    }
 
     if (!compareResult) {
       // Compare env returned nothing -- show main only
@@ -126,7 +134,7 @@ async function performSearch() {
   try {
     const promises = [autocompleteSearch(searchParams)];
     if (compareEnv) {
-      promises.push(autocompleteSearch(searchParams, compareEnv).catch(() => null));
+      promises.push(autocompleteSearch(searchParams, compareEnv).catch((err) => ({ _error: err })));
     }
 
     const [mainResponse, compareResponse] = await Promise.all(promises);
@@ -139,7 +147,11 @@ async function performSearch() {
 
     renderSearchResults(mainResponse, false, handleResultClick);
     if (compareResponse) {
-      renderSearchResults(compareResponse, true, handleResultClick);
+      if (compareResponse._error) {
+        renderSearchError(compareResponse._error, true);
+      } else {
+        renderSearchResults(compareResponse, true, handleResultClick);
+      }
     }
   } catch (error) {
     console.error("Error performing search:", error);

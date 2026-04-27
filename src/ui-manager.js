@@ -71,6 +71,67 @@ export function renderSearchResults(response, isProduction, onResultClick) {
 }
 
 /**
+ * Renders an error state in one of the result lists (compare or main)
+ * @param {Error} error - Error from API call (may carry status/details)
+ * @param {boolean} isCompare - Whether to render in the compare list
+ */
+export function renderSearchError(error, isCompare) {
+  const resultsId = isCompare ? "autocomplete-results-compare" : "autocomplete-results";
+  const headerId = isCompare ? "prod-header" : "dev-header";
+  const results = document.getElementById(resultsId);
+  const header = document.getElementById(headerId);
+  const wrapper = document.getElementById("results-wrapper");
+
+  if (!results) return;
+
+  const status = error?.status
+    ? `HTTP ${error.status}${error.statusText ? ` ${error.statusText}` : ""}`
+    : (error?.message || "Network error");
+  const detailsText = error?.details
+    ? `<div class="text-xs text-red-600 mt-0.5 break-all">${escapeHtml(JSON.stringify(error.details))}</div>`
+    : "";
+
+  results.innerHTML = `
+    <li class="px-3 py-2 bg-red-50 border-b border-red-200">
+      <div class="text-xs font-semibold text-red-700">${escapeHtml(status)}</div>
+      ${detailsText}
+    </li>
+  `;
+
+  if (header) header.classList.remove("hidden");
+  if (wrapper) wrapper.classList.remove("hidden");
+}
+
+/**
+ * Prepends a banner indicating that the compare environment failed to respond
+ * @param {Error} error - Error from API call (may carry status/details)
+ * @param {string} compareLabel - Display name of compare environment
+ */
+export function displayCompareErrorBanner(error, compareLabel) {
+  const detailsHTML = document.querySelector(".addressDetails");
+  if (!detailsHTML) return;
+
+  const status = error?.status
+    ? `HTTP ${error.status}${error.statusText ? ` ${error.statusText}` : ""}`
+    : (error?.message || "Network error");
+  const detailsBlock = error?.details
+    ? `<pre class="mt-2 text-xs bg-white p-2 rounded border border-red-200 overflow-x-auto">${escapeHtml(JSON.stringify(error.details, null, 2))}</pre>`
+    : "";
+
+  const banner = `
+    <div class="bg-red-50 p-3 rounded-lg border border-red-300">
+      <div class="text-xs font-semibold text-red-800">
+        ${escapeHtml(compareLabel)} request failed (${escapeHtml(status)})
+      </div>
+      <div class="text-xs text-red-700 mt-1">No comparison available — only ${escapeHtml(compareLabel)} side is missing.</div>
+      ${detailsBlock}
+    </div>
+  `;
+
+  detailsHTML.insertAdjacentHTML("afterbegin", banner);
+}
+
+/**
  * Checks if both result lists are empty and hides wrapper if so
  */
 function checkAndHideWrapper() {

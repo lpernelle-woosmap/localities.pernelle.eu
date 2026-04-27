@@ -86,30 +86,45 @@ function buildApiArgs({ input, components, types, excluded_types, extended, loca
 
 /**
  * Generic API fetch with error handling
+ * Throws on non-OK responses so callers can distinguish failure from empty results.
  * @param {string} url - API URL
  * @param {boolean} showErrors - Whether to show error modal
  * @returns {Promise} API response
  */
 async function fetchApi(url, showErrors = false) {
+  let response;
   try {
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (!response.ok && showErrors) {
-      const details = data?.details;
-      const message = details
-        ? `<pre>${JSON.stringify(details, null, 2)}</pre>`
-        : "Unknown API error.";
-      showErrorModal(message);
-    }
-
-    return data;
+    response = await fetch(url);
   } catch (err) {
     if (showErrors) {
       showErrorModal(err.message || "A network error occurred.");
     }
     throw err;
   }
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    // Body wasn't valid JSON
+  }
+
+  if (!response.ok) {
+    const details = data?.details;
+    if (showErrors) {
+      const message = details
+        ? `<pre>${JSON.stringify(details, null, 2)}</pre>`
+        : `HTTP ${response.status} ${response.statusText || "error"}`;
+      showErrorModal(message);
+    }
+    const error = new Error(`HTTP ${response.status}`);
+    error.status = response.status;
+    error.statusText = response.statusText;
+    error.details = details ?? null;
+    throw error;
+  }
+
+  return data;
 }
 
 /**

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Woosmap Localities · Mobile</title>
+  <link rel="icon" type="image/svg+xml" href="localities.svg" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.5.0/css/flag-icon.min.css" />
+
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    #map { position: fixed; inset: 0; z-index: 0; background: #EFEAE0; }
+    .glass { background: rgba(255,255,255,0.92); backdrop-filter: blur(12px) saturate(180%); -webkit-backdrop-filter: blur(12px) saturate(180%); box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.06); }
+    .glass-dark { background: rgba(0,0,0,0.5); backdrop-filter: blur(20px) saturate(180%); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { scrollbar-width: none; }
+    .sheet-shadow { box-shadow: 0 -4px 24px rgba(0,0,0,0.1), 0 -1px 0 rgba(0,0,0,0.04); }
+    /* safe areas */
+    .pb-safe { padding-bottom: max(34px, env(safe-area-inset-bottom)); }
+    .pt-safe { padding-top: max(56px, calc(env(safe-area-inset-top) + 12px)); }
+    /* sheet open/close animation */
+    .sheet-enter { transform: translateY(100%); }
+    .sheet-open { transform: translateY(0); }
+    .sheet { transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1); }
+    /* highlight bold match (matches escaped <b> tags from boldMatchedSubstring) */
+    .result-text b { font-weight: 700; color: #111; }
+  </style>
+</head>
+<body class="bg-[#EFEAE0]">
+
+  <!-- ────────── MAP ────────── -->
+  <div id="map"></div>
+
+  <!-- ────────── GLASS HEADER (env + endpoint) ────────── -->
+  <div class="fixed left-3 right-3 z-30 pt-safe">
+    <div class="flex items-center gap-2 mt-1">
+      <!-- Woosmap mark -->
+      <div class="glass w-[38px] h-[38px] rounded-full flex items-center justify-center shrink-0">
+        <img src="localities.svg" alt="" class="w-[22px] h-[22px]" />
+      </div>
+
+      <!-- Env switcher button (opens env sheet) -->
+      <button id="env-btn" class="glass flex-1 h-[38px] rounded-full px-3 flex items-center gap-2 min-w-0">
+        <span id="env-display" class="flex items-center gap-2 min-w-0 flex-1 overflow-hidden text-left"></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="shrink-0">
+          <path d="M9 6l6 6-6 6" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+
+      <!-- Endpoint button -->
+      <button id="endpoint-btn" class="glass h-[38px] rounded-full px-3 flex items-center gap-1 shrink-0">
+        <span id="endpoint-display" class="text-[12px] font-semibold tracking-tight text-gray-900">autocomplete</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path d="M9 6l6 6-6 6" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ────────── RIGHT FABs ────────── -->
+  <div class="fixed right-3 top-[112px] z-30 flex flex-col gap-2">
+    <button id="fab-locate" class="w-11 h-11 rounded-full bg-white shadow-md flex items-center justify-center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="4" stroke="#111" stroke-width="1.8" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="#111" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+    </button>
+    <button id="fab-filters" class="w-11 h-11 rounded-full bg-white shadow-md flex items-center justify-center relative">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path d="M4 6h16M7 12h10M10 18h4" stroke="#111" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+      <span id="filter-count" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1.5 rounded-full bg-[#00B0FF] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">2</span>
+    </button>
+  </div>
+
+  <!-- ────────── BOTTOM SHEET (search + results + detail) ────────── -->
+  <div id="bottom-sheet" class="fixed left-0 right-0 bottom-0 z-25 bg-white rounded-t-[22px] sheet-shadow pb-safe flex flex-col" style="z-index: 25; max-height: 62%;">
+    <!-- drag handle -->
+    <div class="flex justify-center py-2"><div class="w-[38px] h-[5px] rounded-full bg-[#DCDCE0]"></div></div>
+
+    <!-- Search bar -->
+    <div class="px-4 pb-3 shrink-0">
+      <div class="flex items-center gap-2.5 h-11 px-3.5 rounded-xl bg-[#F1F1F3]">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="shrink-0">
+          <circle cx="11" cy="11" r="7" stroke="#8E8E93" stroke-width="1.8" />
+          <path d="M20 20l-3-3" stroke="#8E8E93" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        <input id="input" autocomplete="off" type="text" placeholder="Search address, city, place…"
+          class="flex-1 bg-transparent outline-none text-[17px] text-gray-900 tracking-tight placeholder:text-[#8E8E93]" />
+        <button id="clear-btn" class="hidden w-[18px] h-[18px] rounded-full bg-[#C7C7CC] text-white items-center justify-center">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="white" stroke-width="2.5" stroke-linecap="round" /></svg>
+        </button>
+      </div>
+      <!-- active filter chips -->
+      <div id="active-chips" class="flex gap-1.5 mt-2.5 flex-wrap"></div>
+    </div>
+
+    <!-- Dynamic content (results list OR detail) -->
+    <div id="sheet-content" class="flex-1 overflow-y-auto min-h-0 no-scrollbar">
+      <!-- populated by mobile-ui.js -->
+      <div id="empty-state" class="flex flex-col items-center justify-center py-12 px-8 text-center">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" class="text-gray-300 mb-3">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" stroke="currentColor" d="M21 21l-5-5m1.5-5.5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <p class="text-sm text-gray-500">Search for a location or<br/>tap on the map.</p>
+      </div>
+    </div>
+
+    <!-- Detail action bar (shown when in detail/compare mode) -->
+    <div id="sheet-action-bar" class="hidden shrink-0 px-4 pt-2.5 border-t border-[#ECECEE] bg-white">
+      <!-- populated by mobile-ui.js -->
+    </div>
+  </div>
+
+  <!-- ────────── FILTER SHEET ────────── -->
+  <div id="filter-sheet" class="fixed left-0 right-0 bottom-0 z-40 bg-white rounded-t-[22px] sheet-shadow pb-safe flex flex-col sheet sheet-enter" style="top: 14%; transform: translateY(100%);">
+    <div class="flex justify-center py-2"><div class="w-[38px] h-[5px] rounded-full bg-[#DCDCE0]"></div></div>
+    <div class="px-5 pb-3 flex items-center justify-between">
+      <button id="filter-reset" class="text-[11px] font-semibold text-[#00B0FF]">Reset</button>
+      <h2 class="text-[17px] font-bold tracking-tight">Filters</h2>
+      <button id="filter-close" class="w-7 h-7 rounded-full bg-[#F1F1F3] flex items-center justify-center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="#5A5A5F" stroke-width="2" stroke-linecap="round" /></svg>
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto px-4 no-scrollbar">
+      <!-- Types -->
+      <div class="mb-5">
+        <div class="text-[11px] font-bold tracking-wider text-[#8E8E93] uppercase mb-2">Types</div>
+        <div id="types-pills" class="flex gap-1.5 flex-wrap"></div>
+      </div>
+      <!-- Excluded types -->
+      <div class="mb-5">
+        <div class="text-[11px] font-bold tracking-wider text-[#8E8E93] uppercase mb-2">Excluded types</div>
+        <div id="excluded-types-pills" class="flex gap-1.5 flex-wrap"></div>
+      </div>
+      <!-- Countries -->
+      <div class="mb-5">
+        <div class="text-[11px] font-bold tracking-wider text-[#8E8E93] uppercase mb-2">Country restrictions</div>
+        <div id="country-pills" class="flex gap-1.5 flex-wrap">
+          <button id="add-country-btn" class="px-3 py-1.5 rounded-[18px] bg-[#F1F1F3] text-[13px] font-medium text-gray-900">+ Add country</button>
+        </div>
+      </div>
+      <!-- Switches -->
+      <div class="mb-5">
+        <div class="text-[11px] font-bold tracking-wider text-[#8E8E93] uppercase mb-2">Options</div>
+        <div id="switches"></div>
+      </div>
+      <!-- Language -->
+      <div class="mb-5">
+        <div class="text-[11px] font-bold tracking-wider text-[#8E8E93] uppercase mb-2">Language</div>
+        <button id="lang-row" class="w-full flex items-center justify-between px-3.5 py-3 bg-[#F7F7F9] rounded-xl text-[15px] text-gray-900">
+          <span id="lang-display">Français (fr)</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#8E8E93" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </button>
+      </div>
+      <!-- Custom description -->
+      <div class="mb-5">
+        <div class="text-[11px] font-bold tracking-wider text-[#8E8E93] uppercase mb-2">Custom description</div>
+        <input id="custom-description-input-mobile" type="text" placeholder='locality:"{name} - {administrative_area_level_0}"'
+          class="w-full px-3.5 py-3 bg-[#F7F7F9] rounded-xl text-[13px] font-mono outline-none placeholder:text-[#8E8E93]" />
+      </div>
+    </div>
+    <div class="px-4 pt-3 border-t border-[#ECECEE]">
+      <button id="filter-apply" class="w-full h-[50px] rounded-[14px] bg-[#00B0FF] text-white text-[16px] font-semibold tracking-tight shadow-lg shadow-cyan-500/30">Apply</button>
+    </div>
+  </div>
+
+  <!-- ────────── COUNTRY PICKER (full-screen sheet) ────────── -->
+  <div id="country-sheet" class="fixed inset-0 z-50 bg-white hidden flex-col pb-safe">
+    <div class="pt-safe px-4 pb-3 flex items-center justify-between border-b border-[#ECECEE]">
+      <button id="country-close" class="text-[15px] text-[#00B0FF]">Cancel</button>
+      <h2 class="text-[17px] font-bold tracking-tight">Countries</h2>
+      <button id="country-done" class="text-[15px] font-semibold text-[#00B0FF]">Done</button>
+    </div>
+    <input id="country-search" type="text" placeholder="Search…" class="mx-4 my-3 px-3.5 py-2.5 bg-[#F1F1F3] rounded-xl outline-none text-[15px]" />
+    <div id="countries-list" class="flex-1 overflow-y-auto no-scrollbar"></div>
+  </div>
+
+  <!-- ────────── ENV PICKER (compact sheet) ────────── -->
+  <div id="env-sheet" class="fixed left-0 right-0 bottom-0 z-50 bg-white rounded-t-[22px] sheet-shadow pb-safe hidden">
+    <div class="flex justify-center py-2"><div class="w-[38px] h-[5px] rounded-full bg-[#DCDCE0]"></div></div>
+    <div class="px-5 pb-3">
+      <h3 class="text-[15px] font-bold tracking-tight mb-1">Environments</h3>
+      <p class="text-[12px] text-[#8E8E93]">Choose target and (optionally) a compare environment.</p>
+    </div>
+    <div class="px-4 pb-4">
+      <div class="text-[11px] font-bold tracking-wider text-[#8E8E93] uppercase mb-1.5 px-1">Target</div>
+      <div id="target-options" class="bg-[#F7F7F9] rounded-xl overflow-hidden mb-4"></div>
+      <div class="text-[11px] font-bold tracking-wider text-[#8E8E93] uppercase mb-1.5 px-1">Compare with</div>
+      <div id="compare-options" class="bg-[#F7F7F9] rounded-xl overflow-hidden"></div>
+    </div>
+  </div>
+
+  <!-- ────────── ENDPOINT PICKER ────────── -->
+  <div id="endpoint-sheet" class="fixed left-0 right-0 bottom-0 z-50 bg-white rounded-t-[22px] sheet-shadow pb-safe hidden">
+    <div class="flex justify-center py-2"><div class="w-[38px] h-[5px] rounded-full bg-[#DCDCE0]"></div></div>
+    <div class="px-5 pb-3">
+      <h3 class="text-[15px] font-bold tracking-tight">Endpoint</h3>
+    </div>
+    <div class="px-4 pb-4">
+      <div id="endpoint-options" class="bg-[#F7F7F9] rounded-xl overflow-hidden"></div>
+    </div>
+  </div>
+
+  <!-- ────────── LANGUAGE PICKER ────────── -->
+  <div id="lang-sheet" class="fixed inset-0 z-[60] bg-white hidden flex-col pb-safe">
+    <div class="pt-safe px-4 pb-3 flex items-center justify-between border-b border-[#ECECEE]">
+      <button id="lang-close" class="text-[15px] text-[#00B0FF]">Cancel</button>
+      <h2 class="text-[17px] font-bold tracking-tight">Language</h2>
+      <span class="w-12"></span>
+    </div>
+    <input id="lang-search" type="text" placeholder="Search…" class="mx-4 my-3 px-3.5 py-2.5 bg-[#F1F1F3] rounded-xl outline-none text-[15px]" />
+    <div id="lang-list" class="flex-1 overflow-y-auto no-scrollbar"></div>
+  </div>
+
+  <!-- Generic overlay for sheets -->
+  <div id="overlay" class="fixed inset-0 z-30 bg-black/40 hidden"></div>
+
+  <!-- ────────── ERROR MODAL ────────── -->
+  <div id="error-modal" class="fixed inset-0 z-[70] bg-black/50 hidden items-end justify-center">
+    <div class="bg-white w-full rounded-t-[22px] p-5 pb-safe">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-[17px] font-bold text-red-600 flex items-center gap-1.5">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" stroke="currentColor" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          Error
+        </h3>
+        <button id="close-error-modal" class="w-7 h-7 rounded-full bg-[#F1F1F3] flex items-center justify-center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="#5A5A5F" stroke-width="2" stroke-linecap="round" /></svg></button>
+      </div>
+      <div id="error-message" class="text-[13px] text-gray-800 bg-red-50 border border-red-200 rounded-xl p-3 font-mono"></div>
+    </div>
+  </div>
+
+  <!-- Hidden compatibility shims for environment_select.js / endpoint_select.js / api-service.js -->
+  <div class="hidden" aria-hidden="true">
+    <select id="env-select"><option value="dev" selected>Development</option><option value="prod">Production</option><option value="pr" id="pr-deploy">PR Deploy</option></select>
+    <select id="compare-select"><option value="none">None</option><option value="prod" selected>Production</option><option value="dev">Development</option><option value="pr" id="compare-pr-deploy">PR Deploy</option></select>
+    <select id="endpoint-select"><option value="autocomplete" selected>Autocomplete/Details</option><option value="search">Search/Details</option><option value="geocode">Geocode</option></select>
+    <select id="language-select"></select>
+    <input id="custom-description-input" type="text" />
+    <input id="extended-checkbox" type="checkbox" />
+    <input id="bias-checkbox" type="checkbox" />
+    <input id="geometry" type="checkbox" />
+    <!-- Compat: ui-manager.js sometimes reads these; harmless empties -->
+    <div id="results-wrapper"></div>
+    <div id="dev-header"><span></span></div>
+    <div id="prod-header"><span></span></div>
+    <ul id="autocomplete-results"></ul>
+    <ul id="autocomplete-results-compare"></ul>
+    <div class="addressDetails"></div>
+    <div class="addressDetails-placeholder"></div>
+    <div id="active-restrictions"></div>
+    <div id="countries"><div id="countries-grid"></div></div>
+    <button id="btnRestrict"></button>
+    <div id="bgOverlay"></div>
+  </div>
+
+  <!-- Mobile app -->
+  <script type="module" src="src/mobile-app.js"></script>
+</body>
+</html>

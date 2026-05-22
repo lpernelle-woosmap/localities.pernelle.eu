@@ -51,6 +51,24 @@ export function getCompareEnvironment() {
 }
 
 /**
+ * Returns true if the compare env points to the same stack as the target env
+ * (same URL and key). For PR vs PR, this checks both PR numbers resolve to the
+ * same URL.
+ * @returns {boolean}
+ */
+export function isCompareSameAsTarget() {
+  const targetSel = document.getElementById("env-select").value;
+  const compareSel = document.getElementById("compare-select").value;
+  if (compareSel === "none") return false;
+
+  const target = environments[targetSel];
+  const compare = compareSel === "pr" ? environments.comparePr : environments[compareSel];
+  if (!target || !compare) return false;
+
+  return target.url === compare.url && target.woosmap_key === compare.woosmap_key;
+}
+
+/**
  * Gets the display label for the target environment
  * @returns {string}
  */

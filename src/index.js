@@ -7,7 +7,7 @@ import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js
 import { initializeMap, getMap, displayLocationOnMap, displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener } from "./map-manager.js";
 import { renderSearchResults, renderSearchError, displayLocationDetails, displayComparisonDetails, displayCompareErrorBanner, hideSearchResults, clearSearchResults, onAddressClick } from "./ui-manager.js";
 import { computeDiff, coordinatesDiffer, viewportDiffers } from "./diff-utils.js";
-import { getCompareEnvironment, getTargetLabel, getCompareLabel } from "./environment_select.js";
+import { getCompareEnvironment, getTargetLabel, getCompareLabel, isCompareSameAsTarget } from "./environment_select.js";
 import { CONFIG } from "./config.js";
 
 // Application state
@@ -24,7 +24,7 @@ async function requestDetails(publicId) {
     .map(e => e.value)
     .join("|");
 
-  const compareEnv = getCompareEnvironment();
+  const compareEnv = isCompareSameAsTarget() ? null : getCompareEnvironment();
 
   try {
     // Always clear previous comparison markers
@@ -130,7 +130,7 @@ async function performSearch() {
   };
 
   // Perform search, with optional comparison in parallel
-  const compareEnv = getCompareEnvironment();
+  const compareEnv = isCompareSameAsTarget() ? null : getCompareEnvironment();
   try {
     const promises = [autocompleteSearch(searchParams)];
     if (compareEnv) {
@@ -152,6 +152,11 @@ async function performSearch() {
       } else {
         renderSearchResults(compareResponse, true, handleResultClick);
       }
+    } else {
+      // No comparison: ensure the compare list and header are cleared
+      const compareResults = document.getElementById("autocomplete-results-compare");
+      if (compareResults) compareResults.innerHTML = "";
+      if (prodHeader) prodHeader.classList.add("hidden");
     }
   } catch (error) {
     console.error("Error performing search:", error);

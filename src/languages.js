@@ -20,6 +20,7 @@ export const isoLanguages = [
     { id: "sr", text: "Serbian" },
     { id: "ga", text: "Irish" },
     { id: "cy", text: "Welsh" },
+    { id: "sv", text: "Swedish" },
     // Asian
     { id: "ja", text: "Japanese" },
     { id: "zh", text: "Chinese" },

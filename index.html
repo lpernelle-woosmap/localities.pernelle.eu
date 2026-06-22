@@ -211,15 +211,27 @@
           <!-- Fields -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Response Fields</label>
-            <div class="flex items-center">
-              <input
-                type="checkbox"
-                id="geometry"
-                name="fields"
-                value="geometry"
-                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label for="geometry" class="ml-2 text-sm text-gray-700">Geometry <span class="italic">only</span></label>
+            <div class="space-y-2">
+              <div class="flex items-center">
+                <input
+                  type="checkbox"
+                  id="geometry"
+                  name="fields"
+                  value="geometry"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label for="geometry" class="ml-2 text-sm text-gray-700">Geometry <span class="italic">only</span></label>
+              </div>
+              <div class="flex items-center">
+                <input
+                  type="checkbox"
+                  id="shape"
+                  name="fields"
+                  value="shape"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label for="shape" class="ml-2 text-sm text-gray-700">Shape <span class="italic">(boundary polygon)</span></label>
+              </div>
             </div>
           </div>
 

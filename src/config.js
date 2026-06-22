@@ -33,6 +33,13 @@ export const CONFIG = {
       FILL_COLOR: "#1565C0",
       FILL_OPACITY: 0.3
     },
+    BIAS_CIRCLE_STYLE: {
+      STROKE_COLOR: "#7c3aed",
+      STROKE_OPACITY: 0.8,
+      STROKE_WEIGHT: 2,
+      FILL_COLOR: "#7c3aed",
+      FILL_OPACITY: 0.15
+    },
     STYLES: [
       {
         featureType: "point_of_interest",
@@ -46,7 +53,9 @@ export const CONFIG = {
   API: {
     DEFAULT_LANGUAGE: "fr",
     DEBOUNCE_DELAY: 300, // milliseconds
-    GEOGRAPHICAL_BIAS_RADIUS: 10000 // meters
+    GEOGRAPHICAL_BIAS_RADIUS: 10000, // meters (fallback when map bounds are unavailable)
+    MIN_GEOGRAPHICAL_BIAS_RADIUS: 10, // meters (API minimum accepted radius)
+    MAX_GEOGRAPHICAL_BIAS_RADIUS: 100000 // meters (cap for the zoom-adaptive radius)
   },
 
   // Woosmap SDK

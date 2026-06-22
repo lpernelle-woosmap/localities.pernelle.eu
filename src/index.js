@@ -4,7 +4,7 @@ import { isoCountries } from "./countries.js";
 import { isoLanguages } from "./languages.js";
 import { debounce } from "./utils.js";
 import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js";
-import { initializeMap, getMap, displayLocationOnMap, displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener } from "./map-manager.js";
+import { initializeMap, getMap, displayLocationOnMap, displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener, showBiasCircle, hideBiasCircle, getBiasRadius } from "./map-manager.js";
 import { renderSearchResults, renderSearchError, displayLocationDetails, displayComparisonDetails, displayCompareErrorBanner, hideSearchResults, clearSearchResults, onAddressClick } from "./ui-manager.js";
 import { computeDiff, coordinatesDiffer, viewportDiffers } from "./diff-utils.js";
 import { getCompareEnvironment, getTargetLabel, getCompareLabel, isCompareSameAsTarget } from "./environment_select.js";
@@ -20,9 +20,16 @@ let biasEnabled = false;
  * @param {string} publicId - Public ID of the location
  */
 async function requestDetails(publicId) {
-  const fields = [...document.querySelectorAll('input[name="fields"]:checked')]
-    .map(e => e.value)
-    .join("|");
+  const selectedFields = [...document.querySelectorAll('input[name="fields"]:checked')]
+    .map(e => e.value);
+
+  // The shape field needs geometry alongside it for the marker position and
+  // viewport-based bounds fitting (see the Localities shape sample).
+  if (selectedFields.includes("shape") && !selectedFields.includes("geometry")) {
+    selectedFields.push("geometry");
+  }
+
+  const fields = selectedFields.join("|");
 
   const compareEnv = isCompareSameAsTarget() ? null : getCompareEnvironment();
 
@@ -125,7 +132,7 @@ async function performSearch() {
     excluded_types,
     extended,
     location: biasEnabled && map ? map.getCenter() : null,
-    radius: biasEnabled ? CONFIG.API.GEOGRAPHICAL_BIAS_RADIUS : null,
+    radius: biasEnabled ? getBiasRadius() : null,
     custom_description: customDescription || null
   };
 
@@ -348,6 +355,11 @@ function initUI() {
   if (biasCheckbox) {
     biasCheckbox.addEventListener("change", () => {
       biasEnabled = biasCheckbox.checked;
+      if (biasEnabled) {
+        showBiasCircle();
+      } else {
+        hideBiasCircle();
+      }
       performSearch();
     });
   }

@@ -11,6 +11,7 @@ import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js
 import {
   initializeMap, getMap, displayLocationOnMap,
   displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener,
+  showBiasCircle, hideBiasCircle, getBiasRadius,
 } from "./map-manager.js";
 import { computeDiff, coordinatesDiffer, viewportDiffers } from "./diff-utils.js";
 import {
@@ -77,6 +78,7 @@ function syncShims() {
   document.getElementById("bias-checkbox").checked = state.bias;
   document.getElementById("geometry").checked = state.geometryOnly;
   document.getElementById("custom-description-input").value = state.customDescription;
+  if (state.bias) showBiasCircle(); else hideBiasCircle();
 }
 
 function renderChrome() {
@@ -127,7 +129,7 @@ async function performSearch() {
     excluded_types: state.excludedTypes.join("|"),
     extended: state.extended,
     location: state.bias && map ? map.getCenter() : null,
-    radius: state.bias ? CONFIG.API.GEOGRAPHICAL_BIAS_RADIUS : null,
+    radius: state.bias ? getBiasRadius() : null,
     custom_description: state.customDescription || null,
   };
 

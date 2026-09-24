@@ -20,5 +20,8 @@ export const isoCountries = [
     { id: "IE", text: "Ireland" },
     { id: "PL", text: "Poland" },
     { id: "VN", text: "Vietnam" },
+    { id: "AT", text: "Austria" },
+    { id: "DK", text: "Denmark" },
+    { id: "SE", text: "Sweden" },
   ];
   

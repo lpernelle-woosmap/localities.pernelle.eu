@@ -179,10 +179,12 @@ export async function getDetails(publicId, fields, env = null) {
  * @param {Object} latlng - Latitude/longitude object
  * @param {string} components - Country restrictions
  * @param {string} types - Type restrictions
+ * @param {string} excluded_types - Excluded type restrictions
+ * @param {Object|null} compareEnv - Environment config to use (defaults to target environment)
  * @returns {Promise} API response
  */
-export async function reverseGeocode(latlng, components, types, excluded_types) {
-  const env = getTargetEnvironment();
+export async function reverseGeocode(latlng, components, types, excluded_types, compareEnv = null) {
+  const env = compareEnv || getTargetEnvironment();
   const lang = getLanguage();
   const args = {
     key: env.woosmap_key,

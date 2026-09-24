@@ -93,3 +93,21 @@ export function boldMatchedSubstring(string, matched_substrings) {
 
   return result;
 }
+
+const LAT_LNG_PATTERN = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
+
+/**
+ * Parses a "lat, lng" string into coordinates
+ * @param {string} value - Raw input (separator: comma, semicolon or space)
+ * @returns {{lat: number, lng: number}|null} Coordinates, or null if invalid/out of range
+ */
+export function parseLatLng(value) {
+  const match = LAT_LNG_PATTERN.exec(value || "");
+  if (!match) return null;
+
+  const lat = Number(match[1]);
+  const lng = Number(match[2]);
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+
+  return { lat, lng };
+}

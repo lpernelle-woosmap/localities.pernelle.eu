@@ -71,6 +71,33 @@ export function renderSearchResults(response, isProduction, onResultClick) {
 }
 
 /**
+ * Prepends a "reverse geocode these coordinates" suggestion to the main result list
+ * @param {{lat: number, lng: number}} latlng - Parsed coordinates
+ * @param {Function} onClick - Called with (latlng) when the suggestion is clicked
+ */
+export function renderCoordinatesSuggestion(latlng, onClick) {
+  const results = document.getElementById("autocomplete-results");
+  const header = document.getElementById("dev-header");
+  const wrapper = document.getElementById("results-wrapper");
+
+  if (!results) return;
+
+  results.querySelector(".coords-suggestion")?.remove();
+
+  const coords = escapeHtml(`${latlng.lat}, ${latlng.lng}`);
+  results.insertAdjacentHTML("afterbegin", `
+    <li class="coords-suggestion px-3 py-2 border-b border-gray-200 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors">
+      <div class="text-sm text-gray-900 mb-0.5">Reverse geocode <span class="font-mono font-semibold">${coords}</span></div>
+      <div class="text-xs text-gray-500">geocode?latlng</div>
+    </li>
+  `);
+  results.querySelector(".coords-suggestion").addEventListener("click", () => onClick(latlng));
+
+  if (header) header.classList.remove("hidden");
+  if (wrapper) wrapper.classList.remove("hidden");
+}
+
+/**
  * Renders an error state in one of the result lists (compare or main)
  * @param {Error} error - Error from API call (may carry status/details)
  * @param {boolean} isCompare - Whether to render in the compare list
@@ -403,11 +430,11 @@ function renderDiffField(label, mainVal, compareVal, status, mainLabel, compareL
       <div class="grid grid-cols-2 gap-2 text-sm">
         <div>
           <div class="text-xs font-semibold text-red-700 mb-0.5">${escapeHtml(mainLabel)}</div>
-          <div class="text-gray-900">${mainDisplay}</div>
+          <div class="text-gray-900 break-words min-w-0">${mainDisplay}</div>
         </div>
         <div>
           <div class="text-xs font-semibold text-blue-700 mb-0.5">${escapeHtml(compareLabel)}</div>
-          <div class="text-gray-900">${compareDisplay}</div>
+          <div class="text-gray-900 break-words min-w-0">${compareDisplay}</div>
         </div>
       </div>
     </div>

@@ -2,10 +2,10 @@
 
 import { isoCountries } from "./countries.js";
 import { isoLanguages } from "./languages.js";
-import { debounce } from "./utils.js";
+import { debounce, parseLatLng } from "./utils.js";
 import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js";
 import { initializeMap, getMap, displayLocationOnMap, displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener, showBiasCircle, hideBiasCircle, getBiasRadius } from "./map-manager.js";
-import { renderSearchResults, renderSearchError, displayLocationDetails, displayComparisonDetails, displayCompareErrorBanner, hideSearchResults, clearSearchResults, onAddressClick } from "./ui-manager.js";
+import { renderSearchResults, renderSearchError, displayLocationDetails, displayComparisonDetails, displayCompareErrorBanner, hideSearchResults, clearSearchResults, onAddressClick, renderCoordinatesSuggestion } from "./ui-manager.js";
 import { computeDiff, coordinatesDiffer, viewportDiffers } from "./diff-utils.js";
 import { getCompareEnvironment, getTargetLabel, getCompareLabel, isCompareSameAsTarget } from "./environment_select.js";
 import { CONFIG } from "./config.js";
@@ -14,6 +14,50 @@ import { CONFIG } from "./config.js";
 let componentsRestriction = [];
 let extended = false;
 let biasEnabled = false;
+
+/**
+ * Displays the main result and, when it differs, a comparison with the compare env result
+ * @param {Object|undefined} mainResult - Result from the target environment
+ * @param {Error|undefined} compareError - Error from the compare environment, if any
+ * @param {Object|undefined} compareResult - Result from the compare environment
+ */
+function displayWithComparison(mainResult, compareError, compareResult) {
+  if (!mainResult) {
+    console.warn("No result from main environment");
+    return;
+  }
+
+  // Always show main result on map as primary
+  displayLocationOnMap(mainResult);
+
+  if (compareError) {
+    // Compare env failed (HTTP error or network) -- show main + visible error banner
+    displayLocationDetails(mainResult);
+    displayCompareErrorBanner(compareError, getCompareLabel());
+    return;
+  }
+
+  if (!compareResult) {
+    // Compare env returned nothing -- show main only
+    displayLocationDetails(mainResult);
+    return;
+  }
+
+  // Compare
+  const diff = computeDiff(mainResult, compareResult);
+
+  if (diff.identical) {
+    displayLocationDetails(mainResult);
+  } else {
+    const mainLbl = getTargetLabel();
+    const compareLbl = getCompareLabel();
+    displayComparisonDetails(mainResult, compareResult, diff, mainLbl, compareLbl);
+
+    if (coordinatesDiffer(diff) || viewportDiffers(diff)) {
+      displayCompareLocationOnMap(compareResult);
+    }
+  }
+}
 
 /**
  * Requests and displays details for a location
@@ -53,48 +97,26 @@ async function requestDetails(publicId) {
       getDetails(publicId, fields, compareEnv).catch((err) => ({ _error: err }))
     ]);
 
-    const mainResult = mainResponse?.result;
-    const compareError = compareResponse?._error;
-    const compareResult = compareResponse?.result;
-
-    if (!mainResult) {
-      console.warn("No result from main environment");
-      return;
-    }
-
-    // Always show main result on map as primary
-    displayLocationOnMap(mainResult);
-
-    if (compareError) {
-      // Compare env failed (HTTP error or network) -- show main + visible error banner
-      displayLocationDetails(mainResult);
-      displayCompareErrorBanner(compareError, getCompareLabel());
-      return;
-    }
-
-    if (!compareResult) {
-      // Compare env returned nothing -- show main only
-      displayLocationDetails(mainResult);
-      return;
-    }
-
-    // Compare
-    const diff = computeDiff(mainResult, compareResult);
-
-    if (diff.identical) {
-      displayLocationDetails(mainResult);
-    } else {
-      const mainLbl = getTargetLabel();
-      const compareLbl = getCompareLabel();
-      displayComparisonDetails(mainResult, compareResult, diff, mainLbl, compareLbl);
-
-      if (coordinatesDiffer(diff) || viewportDiffers(diff)) {
-        displayCompareLocationOnMap(compareResult);
-      }
-    }
+    displayWithComparison(mainResponse?.result, compareResponse?._error, compareResponse?.result);
   } catch (error) {
     console.error("Error fetching details:", error);
   }
+}
+
+/**
+ * Reads the country/type restrictions from the controls panel
+ * @returns {{components: string, types: string, excluded_types: string}} Pipe-separated filters
+ */
+function getRestrictions() {
+  const selectedValues = (id) => Array.from(document.getElementById(id).selectedOptions)
+    .map(o => o.value)
+    .join("|");
+
+  return {
+    components: componentsRestriction.map(({ id }) => `country:${id}`).join("|"),
+    types: selectedValues("types-select"),
+    excluded_types: selectedValues("excluded-types-select")
+  };
 }
 
 /**
@@ -110,17 +132,7 @@ async function performSearch() {
     return;
   }
 
-  const typesSelect = document.getElementById("types-select");
-  const excludedTypesSelect = document.getElementById("excluded-types-select");
-  const components = componentsRestriction
-    .map(({ id }) => `country:${id}`)
-    .join("|");
-  const types = Array.from(typesSelect.selectedOptions)
-    .map(o => o.value)
-    .join("|");
-  const excluded_types = Array.from(excludedTypesSelect.selectedOptions)
-    .map(o => o.value)
-    .join("|");
+  const { components, types, excluded_types } = getRestrictions();
 
   const map = getMap();
   const customDescriptionInput = document.getElementById("custom-description-input");
@@ -168,6 +180,11 @@ async function performSearch() {
   } catch (error) {
     console.error("Error performing search:", error);
   }
+
+  const latlng = parseLatLng(value);
+  if (latlng) {
+    renderCoordinatesSuggestion(latlng, handleCoordinatesClick);
+  }
 }
 
 /**
@@ -189,26 +206,56 @@ function handleResultClick(predictionId, name) {
  * @param {Object} event - Map click event
  */
 async function handleMapClick(event) {
-  const typesSelect = document.getElementById("types-select");
-  const excludedTypesSelect = document.getElementById("excluded-types-select");
-  const components = componentsRestriction
-    .map(({ id }) => `country:${id}`)
-    .join("|");
-  const types = Array.from(typesSelect.selectedOptions)
-    .map(o => o.value)
-    .join("|");
-  const excluded_types = Array.from(excludedTypesSelect.selectedOptions)
-    .map(o => o.value)
-    .join("|");
+  const result = await reverseGeocodeFirst(event.latlng);
+  if (result) {
+    displayLocationDetails(result);
+  }
+}
 
-  try {
-    const response = await reverseGeocode(event.latlng, components, types, excluded_types);
-    if (response?.results?.[0]) {
-      console.log("Reverse geocode result:", response.results[0].formatted_address);
-      displayLocationDetails(response.results[0]);
+/**
+ * Handles click on the coordinates suggestion: reverse geocodes and shows the result
+ * @param {{lat: number, lng: number}} latlng - Coordinates typed in the search input
+ */
+async function handleCoordinatesClick(latlng) {
+  hideSearchResults();
+  clearCompareLocationFromMap();
+
+  const compareEnv = isCompareSameAsTarget() ? null : getCompareEnvironment();
+  if (!compareEnv) {
+    const result = await reverseGeocodeFirst(latlng);
+    if (result) {
+      displayLocationDetails(result);
+      displayLocationOnMap(result);
     }
+    return;
+  }
+
+  const { components, types, excluded_types } = getRestrictions();
+  const [mainResult, compareResponse] = await Promise.all([
+    reverseGeocodeFirst(latlng),
+    reverseGeocode(latlng, components, types, excluded_types, compareEnv).catch((err) => ({ _error: err }))
+  ]);
+
+  displayWithComparison(mainResult, compareResponse?._error, compareResponse?.results?.[0]);
+}
+
+/**
+ * Reverse geocodes coordinates with the current restrictions
+ * @param {{lat: number, lng: number}} latlng - Coordinates to reverse geocode
+ * @returns {Promise<Object|null>} First geocode result, or null if none/error
+ */
+async function reverseGeocodeFirst(latlng) {
+  const { components, types, excluded_types } = getRestrictions();
+  try {
+    const response = await reverseGeocode(latlng, components, types, excluded_types);
+    const result = response?.results?.[0] ?? null;
+    if (result) {
+      console.log("Reverse geocode result:", result.formatted_address);
+    }
+    return result;
   } catch (error) {
     console.error("Error during reverse geocoding:", error);
+    return null;
   }
 }
 

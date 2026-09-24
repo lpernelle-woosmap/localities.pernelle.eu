@@ -7,6 +7,28 @@ import { getTargetEnpoint } from "./endpoint_select.js";
 const queryParams = new URLSearchParams(window.location.search);
 const langFromUrl = queryParams.get("language");
 
+/** @type {string|null} Last URL requested on the target environment */
+let lastRequestUrl = null;
+
+/**
+ * Returns the last URL requested on the target environment (compare calls excluded)
+ * @returns {string|null}
+ */
+export function getLastRequestUrl() {
+  return lastRequestUrl;
+}
+
+/**
+ * Records the URL when the request targets the main environment
+ * @param {string} url - Request URL
+ * @param {boolean} isTarget - Whether the request uses the target environment
+ */
+function trackRequest(url, isTarget) {
+  if (isTarget) {
+    lastRequestUrl = url;
+  }
+}
+
 /**
  * Returns the currently selected language, or empty string if none
  * Priority: URL query param > select element > empty
@@ -143,6 +165,7 @@ export async function autocompleteSearch(params, env = null) {
 
   const url = `${resolvedEnv.url}${endpoint}/?${buildQueryString(args)}`;
   console.log(`autocompleteSearch - args:`, args);
+  trackRequest(url, !env);
 
   return fetchApi(url, !env);
 }
@@ -171,6 +194,7 @@ export async function getDetails(publicId, fields, env = null) {
   }
 
   const url = `${resolvedEnv.url}details/?${buildQueryString(args)}`;
+  trackRequest(url, !env);
   return fetchApi(url, !env);
 }
 
@@ -208,5 +232,6 @@ export async function reverseGeocode(latlng, components, types, excluded_types, 
   }
 
   const url = `${env.url}geocode/?${buildQueryString(args)}`;
+  trackRequest(url, !compareEnv);
   return fetchApi(url, false);
 }

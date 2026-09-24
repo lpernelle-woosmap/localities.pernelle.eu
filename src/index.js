@@ -7,7 +7,8 @@ import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js
 import { initializeMap, getMap, displayLocationOnMap, displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener, showBiasCircle, hideBiasCircle, getBiasRadius } from "./map-manager.js";
 import { renderSearchResults, renderSearchError, displayLocationDetails, displayComparisonDetails, displayCompareErrorBanner, hideSearchResults, clearSearchResults, onAddressClick, renderCoordinatesSuggestion } from "./ui-manager.js";
 import { computeDiff, coordinatesDiffer, viewportDiffers } from "./diff-utils.js";
-import { getCompareEnvironment, getTargetLabel, getCompareLabel, isCompareSameAsTarget } from "./environment_select.js";
+import { getCompareEnvironment, getTargetLabel, getCompareLabel, isCompareSameAsTarget, setTargetEnvironment } from "./environment_select.js";
+import { initRequestModal } from "./request-modal.js";
 import { CONFIG } from "./config.js";
 
 // Application state
@@ -264,15 +265,26 @@ async function reverseGeocodeFirst(latlng) {
  * @param {HTMLElement} countryElement - Country element
  */
 function toggleCountry(countryElement) {
-  countryElement.classList.toggle("active");
-  countryElement.classList.toggle("bg-blue-100");
-  countryElement.classList.toggle("border-blue-500");
+  setCountryActive(countryElement, !countryElement.classList.contains("active"));
+  refreshCountryRestrictions();
+}
 
-  const iconWrapper = countryElement.querySelector('.active-icon-wrapper');
-  if (iconWrapper) {
-    iconWrapper.classList.toggle("hidden");
-  }
+/**
+ * Sets the selected state of a country element
+ * @param {HTMLElement} countryElement - Country element
+ * @param {boolean} active - Whether the country is selected
+ */
+function setCountryActive(countryElement, active) {
+  countryElement.classList.toggle("active", active);
+  countryElement.classList.toggle("bg-blue-100", active);
+  countryElement.classList.toggle("border-blue-500", active);
+  countryElement.querySelector(".active-icon-wrapper")?.classList.toggle("hidden", !active);
+}
 
+/**
+ * Rebuilds componentsRestriction from the selected countries and renders the summary
+ */
+function refreshCountryRestrictions() {
   componentsRestriction = [];
 
   document.querySelectorAll(".country.active").forEach(({ dataset }) => {
@@ -295,6 +307,113 @@ function toggleCountry(countryElement) {
     activeRestrictionsEl.innerHTML = activeCountryList.length > 0
       ? activeCountryList.join("")
       : '<span class="text-gray-500">No active restrictions...</span>';
+  }
+}
+
+/**
+ * Replays a pasted request: selects its env, fills the form and runs it with the app keys
+ * @param {{environment: Object|null, endpoint: string, params: Object}} request - Parsed request URL
+ * @throws {Error} If the endpoint is not supported or a required param is missing
+ */
+async function applyRequest({ environment, endpoint, params }) {
+  if (environment) {
+    setTargetEnvironment(environment);
+  }
+  applyFieldsParam(params.fields);
+  document.getElementById("language-select").value = params.language || "";
+
+  if (endpoint === "details") {
+    if (!params.public_id) throw new Error("Missing public_id parameter");
+    return requestDetails(params.public_id);
+  }
+
+  if (endpoint === "geocode" && params.latlng) {
+    const latlng = parseLatLng(params.latlng);
+    if (!latlng) throw new Error(`Invalid latlng: ${params.latlng}`);
+    return handleCoordinatesClick(latlng);
+  }
+
+  const endpointSelect = document.getElementById("endpoint-select");
+  if (![...endpointSelect.options].some(o => o.value === endpoint)) {
+    throw new Error(`Unsupported endpoint: ${endpoint}`);
+  }
+  endpointSelect.value = endpoint;
+  applySearchParams(endpoint, params);
+  return performSearch();
+}
+
+/**
+ * Checks the response field checkboxes listed in a fields param
+ * @param {string|undefined} fields - Pipe-separated fields (unchanged when undefined)
+ */
+function applyFieldsParam(fields) {
+  if (fields === undefined) return;
+  const selected = fields.split("|");
+  document.querySelectorAll('input[name="fields"]').forEach(cb => {
+    cb.checked = selected.includes(cb.value);
+  });
+}
+
+/**
+ * Fills the search controls from autocomplete/search/geocode params
+ * @param {string} endpoint - Target endpoint
+ * @param {Object} params - Request query params
+ */
+function applySearchParams(endpoint, params) {
+  document.getElementById("input").value = (endpoint === "geocode" ? params.address : params.input) || "";
+  document.getElementById("custom-description-input").value = params.custom_description || "";
+  setSelectizeValues("types-select", params.types);
+  setSelectizeValues("excluded-types-select", params.excluded_types);
+  setCountryRestrictions(params.components);
+
+  extended = params.extended === "postal_code";
+  document.getElementById("extended-checkbox").checked = extended;
+
+  // search always sends location=0,0 by default, so it is not a real bias
+  const biasLatLng = params.location === "0,0" ? null : parseLatLng(params.location);
+  setBias(biasLatLng);
+}
+
+/**
+ * Sets a selectize multi-select, creating options it does not know yet
+ * @param {string} selectId - ID of the underlying select element
+ * @param {string|undefined} value - Pipe-separated values
+ */
+function setSelectizeValues(selectId, value) {
+  const selectize = document.getElementById(selectId)?.selectize;
+  if (!selectize) return;
+  const values = value ? value.split("|") : [];
+  values.forEach(v => selectize.addOption({ value: v, text: v }));
+  selectize.setValue(values, true);
+}
+
+/**
+ * Selects exactly the countries listed in a components param
+ * @param {string|undefined} components - e.g. "country:FR|country:IT"
+ */
+function setCountryRestrictions(components) {
+  const codes = (components || "")
+    .split("|")
+    .map(c => c.replace(/^country:/i, "").toUpperCase());
+  document.querySelectorAll(".country").forEach(el => {
+    setCountryActive(el, codes.includes(el.dataset.countrycode.toUpperCase()));
+  });
+  refreshCountryRestrictions();
+}
+
+/**
+ * Enables the geographical bias centered on the given point, or disables it
+ * @param {{lat: number, lng: number}|null} latlng - Bias center, or null to disable
+ */
+function setBias(latlng) {
+  const map = getMap();
+  biasEnabled = Boolean(latlng && map);
+  document.getElementById("bias-checkbox").checked = biasEnabled;
+  if (biasEnabled) {
+    map.setCenter(latlng);
+    showBiasCircle();
+  } else {
+    hideBiasCircle();
   }
 }
 
@@ -514,3 +633,4 @@ onAddressClick((publicId) => requestDetails(publicId));
 
 // Initialize UI when ready
 initUI();
+initRequestModal(applyRequest);

@@ -106,14 +106,35 @@ function handlePrSelection(selectId, envKey, labelId) {
     const targetPR = prompt("Which PR should we target today?");
 
     if (targetPR) {
-      const prNumber = /\d+/.exec(targetPR);
-      environments[envKey].url = `https://develop-api.woosmap.com/${targetPR}/localities/`;
-      const labelEl = document.getElementById(labelId);
-      if (labelEl) {
-        labelEl.innerText = `PR ${prNumber}`;
-      }
+      setPrEnvironment(envKey, labelId, targetPR);
     }
   }
+}
+
+/**
+ * Points a PR environment entry to the given PR deploy and updates its label
+ * @param {string} envKey - Key in environments object ('pr' or 'comparePr')
+ * @param {string} labelId - ID of the option element to update label
+ * @param {string} targetPR - PR path segment (e.g. "1234")
+ */
+function setPrEnvironment(envKey, labelId, targetPR) {
+  const prNumber = /\d+/.exec(targetPR);
+  environments[envKey].url = `https://develop-api.woosmap.com/${targetPR}/localities/`;
+  const labelEl = document.getElementById(labelId);
+  if (labelEl) {
+    labelEl.innerText = `PR ${prNumber}`;
+  }
+}
+
+/**
+ * Selects the target environment programmatically (no PR prompt)
+ * @param {{name: string, prSegment?: string}} environment - Env name ('prod', 'dev', 'pr') and PR segment
+ */
+export function setTargetEnvironment({ name, prSegment }) {
+  if (name === "pr") {
+    setPrEnvironment("pr", "pr-deploy", prSegment);
+  }
+  document.getElementById("env-select").value = name;
 }
 
 // Handle PR environment selection for target env

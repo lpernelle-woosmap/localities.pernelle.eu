@@ -24,6 +24,8 @@ Outil de test interne pour l'API Woosmap Localities. Permet de comparer les repo
 | `src/environment_select.js` | Gestion des 3 envs : `prod`, `dev`, `pr` (URL dynamique pour PR) |
 | `src/endpoint_select.js` | Selecteur endpoint : `autocomplete`, `search`, `geocode` |
 | `src/countries.js` | Liste ISO pays pour filtrage `components` |
+| `src/request-url.js` | Export/import d'URL de requete (`maskApiKey`, `parseRequestUrl`), cles jamais exposees |
+| `src/request-modal.js` | Modale "Request URL" : copie de la derniere requete cible, collage + rejeu via `applyRequest()` |
 | `src/utils.js` | `buildQueryString`, `debounce`, `escapeHtml`, `boldMatchedSubstring` |
 
 ## Environnements API

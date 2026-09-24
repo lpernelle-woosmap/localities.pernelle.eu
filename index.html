@@ -101,6 +101,9 @@
                 <option value="geocode">Geocode</option>
               </select>
             </div>
+            <button type="button" id="request-url-btn" class="self-end px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" title="Copy or paste a request URL">
+              Request URL
+            </button>
           </div>
         </div>
       </div>
@@ -309,6 +312,43 @@
 
   <!-- Overlay -->
   <div id="bgOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+
+  <!-- Request URL Modal -->
+  <div id="request-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div id="request-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50"></div>
+    <div class="relative flex items-center justify-center min-h-screen px-4 pointer-events-none">
+      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 pointer-events-auto">
+        <div class="flex items-start justify-between mb-2">
+          <h3 class="text-lg font-semibold text-gray-900">Request URL</h3>
+          <button id="request-modal-close" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <p class="text-xs text-gray-500 mb-3">
+          Last request sent to the target environment (API key hidden). Paste another Localities URL and apply it:
+          its key is replaced by the app key.
+        </p>
+        <textarea
+          id="request-url-input"
+          rows="5"
+          spellcheck="false"
+          placeholder="https://api.woosmap.com/localities/autocomplete/?input=...&key=..."
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-xs break-all focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        ></textarea>
+        <div id="request-url-error" class="hidden mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2"></div>
+        <div class="mt-4 flex justify-end gap-2">
+          <button type="button" id="request-url-copy" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+            Copy
+          </button>
+          <button type="button" id="request-url-apply" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Error Modal -->
   <div id="error-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">

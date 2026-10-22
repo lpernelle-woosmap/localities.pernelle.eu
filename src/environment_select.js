@@ -137,6 +137,17 @@ export function setTargetEnvironment({ name, prSegment }) {
   document.getElementById("env-select").value = name;
 }
 
+/**
+ * Selects the compare environment programmatically (no PR prompt)
+ * @param {{name: string, prSegment?: string}} environment - Env name ('none', 'prod', 'dev', 'pr') and PR segment
+ */
+export function setCompareEnvironment({ name, prSegment }) {
+  if (name === "pr") {
+    setPrEnvironment("comparePr", "compare-pr-deploy", prSegment);
+  }
+  document.getElementById("compare-select").value = name;
+}
+
 // Handle PR environment selection for target env
 document.getElementById("env-select").addEventListener("change", () => {
   handlePrSelection("env-select", "pr", "pr-deploy");

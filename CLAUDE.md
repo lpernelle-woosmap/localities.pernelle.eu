@@ -27,6 +27,12 @@ Outil de test interne pour l'API Woosmap Localities. Permet de comparer les repo
 | `src/request-url.js` | Export/import d'URL de requete (`maskApiKey`, `parseRequestUrl`), cles jamais exposees |
 | `src/request-modal.js` | Modale "Request URL" : copie de la derniere requete cible, collage + rejeu via `applyRequest()` |
 | `src/utils.js` | `buildQueryString`, `debounce`, `escapeHtml`, `boldMatchedSubstring` |
+| `mobile.html` | Entree mobile : carte + bottom sheet (recherche/resultats/detail), pages plein ecran (filtres, pays, langue), sheets compacts (env, endpoint, Request URL) |
+| `src/mobile-app.js` | Orchestrateur mobile : etat, recherche/details/compare, rejeu d'URL, pickers |
+| `src/mobile-ui.js` | Rendu mobile : chips, resultats fusionnes cible/compare, detail, onglets DEV/PROD/Compare, diff |
+| `src/mobile-sheet.js` | Bottom sheet a crans (peek/half/full), drag, zone carte = au-dessus du sheet, clavier (`visualViewport`) |
+| `src/mobile-filters.js` | Page filtres (types, pays, options, langue, custom description) et listes pays/langue |
+| `src/mobile-redirect.js` | Redirige les UA mobiles de `index.html` vers `mobile.html` (`?nomobile` pour rester sur desktop) |
 
 ## Environnements API
 - **prod** : `https://api.woosmap.com/localities/` (cle prod)
@@ -47,3 +53,9 @@ Outil de test interne pour l'API Woosmap Localities. Permet de comparer les repo
 - Markers carte : dev/PR = rouge (`dot-marker.png`), prod = bleu (SVG data-URI)
 - Polygons viewport : dev = rouge `#b71c1c`, prod = bleu `#1565C0`
 - Langue par defaut : `fr` (overridable via query param `?language=`)
+
+## Mobile (`mobile.html`)
+- Memes features que le desktop ; reutilise `api-service`, `map-manager`, `diff-utils`, `environment_select`, `request-url` sans modification. Des `<select>` caches (`env-select`, `compare-select`, `endpoint-select`, `language-select`) servent de miroir a l'etat pour ces modules.
+- Bottom sheet a 3 crans : `peek` (recherche seule), `half` (55 %), `full` (sous le header). Le conteneur carte s'arrete au-dessus du sheet, donc markers/polygones restent centres dans la zone visible ; la carte est redessinee a chaque cran.
+- Les filtres sont une page plein ecran : jamais affiches en meme temps que la carte.
+- Env `pr` : le `prompt()` est fait par le mobile, puis `setTargetEnvironment` / `setCompareEnvironment` (pas de double prompt).

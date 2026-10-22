@@ -1,7 +1,7 @@
 export const isoCountries = [
     { id: "FR", text: "France" },
     { id: "MC", text: "Monaco" },
-    { id: "GB", text: "United Kingdom" },
+    { id: "GB", text: "United Kingdom", extraCodes: ["JE", "GG"] }, // + Channel Islands
     { id: "IT", text: "Italy" },
     { id: "DE", text: "Germany" },
     { id: "ES", text: "Spain" },
@@ -24,4 +24,15 @@ export const isoCountries = [
     { id: "DK", text: "Denmark" },
     { id: "SE", text: "Sweden" },
   ];
-  
+
+/**
+ * Builds the `components` param, expanding countries that bundle extra codes (e.g. GB + Channel Islands)
+ * @param {string[]} ids - Selected country codes
+ * @returns {string} e.g. "country:GB|country:JE|country:GG"
+ */
+export function buildCountryComponents(ids) {
+  return ids
+    .flatMap(id => [id, ...(isoCountries.find(c => c.id === id)?.extraCodes || [])])
+    .map(id => `country:${id}`)
+    .join("|");
+}

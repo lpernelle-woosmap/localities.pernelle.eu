@@ -4,7 +4,7 @@
 // so the existing modules (api-service.js, environment_select.js, endpoint_select.js)
 // keep working unchanged.
 
-import { isoCountries } from "./countries.js";
+import { isoCountries, buildCountryComponents } from "./countries.js";
 import { isoLanguages } from "./languages.js";
 import { debounce } from "./utils.js";
 import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js";
@@ -121,7 +121,7 @@ async function performSearch() {
 
   const compareEnv = getCompareEnvironment();
   const map = getMap();
-  const components = state.countries.map(c => `country:${c.id}`).join("|");
+  const components = buildCountryComponents(state.countries.map(c => c.id));
   const params = {
     input: value,
     components,
@@ -227,7 +227,7 @@ function renderDetailFromResult(result, showCompareCTA = true) {
 
 // ────────── Map click → reverse geocode ──────────
 async function handleMapClick(event) {
-  const components = state.countries.map(c => `country:${c.id}`).join("|");
+  const components = buildCountryComponents(state.countries.map(c => c.id));
   const types = state.types.join("|");
   const excluded = state.excludedTypes.join("|");
   try {

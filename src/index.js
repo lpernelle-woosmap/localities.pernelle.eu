@@ -1,6 +1,6 @@
 // index.js - Main application entry point
 
-import { isoCountries } from "./countries.js";
+import { isoCountries, buildCountryComponents } from "./countries.js";
 import { isoLanguages } from "./languages.js";
 import { debounce, parseLatLng } from "./utils.js";
 import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js";
@@ -114,7 +114,7 @@ function getRestrictions() {
     .join("|");
 
   return {
-    components: componentsRestriction.map(({ id }) => `country:${id}`).join("|"),
+    components: buildCountryComponents(componentsRestriction.map(({ id }) => id)),
     types: selectedValues("types-select"),
     excluded_types: selectedValues("excluded-types-select")
   };

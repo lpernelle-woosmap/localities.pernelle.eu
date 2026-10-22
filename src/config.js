@@ -5,11 +5,17 @@ export const CONFIG = {
   MAP: {
     DEFAULT_CENTER: { lat: 48.8534, lng: 2.3488 }, // Paris
     DEFAULT_ZOOM: 5,
-    ZOOM_LEVELS: {
-      LOCALITY: 8,
-      POSTAL_CODE: 6,
-      ADDRESS: 16
+    // Zoom applied when a result has no viewport, by its first type
+    ZOOM_BY_TYPE: {
+      country: 5,
+      admin_level: 7,
+      locality: 11,
+      postal_code: 12,
+      airport: 13,
+      address: 16
     },
+    DEFAULT_RESULT_ZOOM: 15, // other types (POI, stations, shopping...)
+    MAX_FIT_ZOOM: 17, // cap when fitting a tiny viewport or two very close markers
     GESTURE_HANDLING: "greedy",
     MARKER_ICON: {
       URL: "marker-red.svg",

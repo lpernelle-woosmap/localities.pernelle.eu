@@ -8,6 +8,7 @@ const SHAPE_ROLE = "_shapeRole";
 
 let mapInstance = null;
 let detailsMarker = null;
+let targetGeometry = null; // geometry of the target result, to frame it with the compare one
 let viewportPolygon = null;
 let compareDetailsMarker = null;
 let compareViewportPolygon = null;
@@ -146,167 +147,159 @@ function clearShapeFeatures(role) {
 }
 
 /**
- * Fits the map to a geometry viewport (NE/SW bounds), if present.
- * @param {Object} viewport - { northeast, southwest } from result.geometry
+ * Extends bounds with a geometry: its location and, when present, its viewport corners
+ * @param {Object} bounds - woosmap.map.LatLngBounds to extend
+ * @param {Object} geometry - result.geometry
  */
-function fitToViewport(viewport) {
-  if (!viewport) return;
-
-  const bounds = new woosmap.map.LatLngBounds();
-  bounds.extend({ lat: viewport.northeast.lat, lng: viewport.northeast.lng });
-  bounds.extend({ lat: viewport.southwest.lat, lng: viewport.southwest.lng });
-  mapInstance.fitBounds(bounds);
+function extendBounds(bounds, geometry) {
+  bounds.extend({ lat: geometry.location.lat, lng: geometry.location.lng });
+  if (geometry.viewport) {
+    bounds.extend({ lat: geometry.viewport.northeast.lat, lng: geometry.viewport.northeast.lng });
+    bounds.extend({ lat: geometry.viewport.southwest.lat, lng: geometry.viewport.southwest.lng });
+  }
 }
 
 /**
- * Displays a location on the map with marker and optional viewport
+ * Fits the map to bounds without zooming closer than MAX_FIT_ZOOM (tiny
+ * viewports such as addresses would otherwise zoom to street level and beyond).
+ * @param {Object} bounds - woosmap.map.LatLngBounds
+ */
+function fitBoundsClamped(bounds) {
+  mapInstance.fitBounds(bounds);
+  if (mapInstance.getZoom() > CONFIG.MAP.MAX_FIT_ZOOM) {
+    mapInstance.setZoom(CONFIG.MAP.MAX_FIT_ZOOM);
+  }
+}
+
+/**
+ * Zoom for a result without viewport: the first of its types with a configured zoom
+ * @param {string[]|undefined} types - result.types
+ * @returns {number} Zoom level
+ */
+function zoomForTypes(types) {
+  const known = (types || []).find((type) => type in CONFIG.MAP.ZOOM_BY_TYPE);
+  return known ? CONFIG.MAP.ZOOM_BY_TYPE[known] : CONFIG.MAP.DEFAULT_RESULT_ZOOM;
+}
+
+/**
+ * Frames a result: fits its viewport when it has one, otherwise centers on its
+ * location at a zoom chosen from its types.
+ * @param {Object} result - Result with geometry (and optional types)
+ */
+function focusResult(result) {
+  const { geometry, types } = result;
+  if (geometry.viewport) {
+    const bounds = new woosmap.map.LatLngBounds();
+    extendBounds(bounds, geometry);
+    fitBoundsClamped(bounds);
+    return;
+  }
+
+  mapInstance.setZoom(zoomForTypes(types));
+  mapInstance.panTo({ lat: geometry.location.lat, lng: geometry.location.lng });
+}
+
+/**
+ * Draws the bounding box rectangle of a viewport (fallback when no shape is available)
+ * @param {Object} viewport - { northeast, southwest } from result.geometry
+ * @param {Object} style - CONFIG.MAP.POLYGON_STYLE or COMPARE_POLYGON_STYLE
+ * @returns {Object} Polygon added to the map
+ */
+function drawViewportRectangle(viewport, style) {
+  const { northeast, southwest } = viewport;
+  const rectangle = [
+    { lat: northeast.lat, lng: northeast.lng },
+    { lat: southwest.lat, lng: northeast.lng },
+    { lat: southwest.lat, lng: southwest.lng },
+    { lat: northeast.lat, lng: southwest.lng },
+    { lat: northeast.lat, lng: northeast.lng }
+  ];
+
+  const polygon = new woosmap.map.Polygon({
+    paths: [rectangle],
+    strokeColor: style.STROKE_COLOR,
+    strokeOpacity: style.STROKE_OPACITY,
+    strokeWeight: style.STROKE_WEIGHT,
+    fillColor: style.FILL_COLOR,
+    fillOpacity: style.FILL_OPACITY
+  });
+  polygon.setMap(mapInstance);
+  return polygon;
+}
+
+/**
+ * Creates a marker at a geometry location
+ * @param {Object} geometry - result.geometry
+ * @param {Object} icon - CONFIG.MAP.MARKER_ICON or COMPARE_MARKER_ICON
+ * @returns {Object} Marker added to the map
+ */
+function createMarker(geometry, icon) {
+  const marker = new woosmap.map.Marker({
+    position: { lat: geometry.location.lat, lng: geometry.location.lng },
+    icon: {
+      url: icon.URL,
+      scaledSize: new woosmap.map.Size(icon.SCALED_SIZE.width, icon.SCALED_SIZE.height)
+    }
+  });
+  marker.setMap(mapInstance);
+  return marker;
+}
+
+/**
+ * Displays a location on the map with marker and shape or viewport, and frames it
  * @param {Object} result - Location result with geometry
  */
 export function displayLocationOnMap(result) {
   if (!mapInstance || !result.geometry) return;
 
-  const { lat, lng } = result.geometry.location;
-  const markerPosition = { lat, lng };
-
-  // Clear previous shape and viewport polygon
+  // Clear previous shape, viewport polygon and marker
   clearShapeFeatures("target");
   if (viewportPolygon) {
     viewportPolygon.setMap(null);
     viewportPolygon = null;
   }
-
-  if (result.geometry.shape) {
-    // Preferred: render the actual GeoJSON shape via the data layer
-    drawShape(result.geometry.shape, "target");
-
-    if (result.geometry.viewport) {
-      fitToViewport(result.geometry.viewport);
-    } else {
-      mapInstance.panTo(markerPosition);
-    }
-  } else if (result.geometry.viewport) {
-    // Fallback: draw the bounding box rectangle when no shape is available
-    const { northeast, southwest } = result.geometry.viewport;
-    const rectangle = [
-      { lat: northeast.lat, lng: northeast.lng },
-      { lat: southwest.lat, lng: northeast.lng },
-      { lat: southwest.lat, lng: southwest.lng },
-      { lat: northeast.lat, lng: southwest.lng },
-      { lat: northeast.lat, lng: northeast.lng }
-    ];
-
-    viewportPolygon = new woosmap.map.Polygon({
-      paths: [rectangle],
-      strokeColor: CONFIG.MAP.POLYGON_STYLE.STROKE_COLOR,
-      strokeOpacity: CONFIG.MAP.POLYGON_STYLE.STROKE_OPACITY,
-      strokeWeight: CONFIG.MAP.POLYGON_STYLE.STROKE_WEIGHT,
-      fillColor: CONFIG.MAP.POLYGON_STYLE.FILL_COLOR,
-      fillOpacity: CONFIG.MAP.POLYGON_STYLE.FILL_OPACITY
-    });
-    viewportPolygon.setMap(mapInstance);
-    mapInstance.panTo(markerPosition);
-  } else {
-    // Set zoom based on type
-    const type = result.types?.[0];
-    let zoom = CONFIG.MAP.ZOOM_LEVELS.ADDRESS;
-
-    if (type === "locality") {
-      zoom = CONFIG.MAP.ZOOM_LEVELS.LOCALITY;
-    } else if (type === "postal_code") {
-      zoom = CONFIG.MAP.ZOOM_LEVELS.POSTAL_CODE;
-    }
-
-    mapInstance.setZoom(zoom);
-    mapInstance.panTo(markerPosition);
-  }
-
-  // Clear previous marker
   if (detailsMarker) {
     detailsMarker.setMap(null);
     detailsMarker = null;
   }
 
-  // Create new marker
-  detailsMarker = new woosmap.map.Marker({
-    position: markerPosition,
-    icon: {
-      url: CONFIG.MAP.MARKER_ICON.URL,
-      scaledSize: new woosmap.map.Size(
-        CONFIG.MAP.MARKER_ICON.SCALED_SIZE.width,
-        CONFIG.MAP.MARKER_ICON.SCALED_SIZE.height
-      )
-    }
-  });
-  detailsMarker.setMap(mapInstance);
+  if (result.geometry.shape) {
+    // Preferred: render the actual GeoJSON shape via the data layer
+    drawShape(result.geometry.shape, "target");
+  } else if (result.geometry.viewport) {
+    viewportPolygon = drawViewportRectangle(result.geometry.viewport, CONFIG.MAP.POLYGON_STYLE);
+  }
+
+  focusResult(result);
+  targetGeometry = result.geometry;
+  detailsMarker = createMarker(result.geometry, CONFIG.MAP.MARKER_ICON);
 }
 
 /**
- * Displays compare environment location on the map with a blue marker and optional viewport
+ * Displays compare environment location on the map with a blue marker and
+ * shape or viewport, then frames both the target and compare geometries
  * @param {Object} result - Location result with geometry
  */
 export function displayCompareLocationOnMap(result) {
   if (!mapInstance || !result.geometry) return;
 
-  const { lat, lng } = result.geometry.location;
-
-  // Clear previous compare shape and viewport polygon
-  clearShapeFeatures("compare");
-  if (compareViewportPolygon) {
-    compareViewportPolygon.setMap(null);
-    compareViewportPolygon = null;
-  }
+  clearCompareLocationFromMap();
 
   if (result.geometry.shape) {
     // Preferred: render the actual GeoJSON shape via the data layer (blue)
     drawShape(result.geometry.shape, "compare");
   } else if (result.geometry.viewport) {
-    // Fallback: draw the bounding box rectangle when no shape is available
-    const { northeast, southwest } = result.geometry.viewport;
-    const rectangle = [
-      { lat: northeast.lat, lng: northeast.lng },
-      { lat: southwest.lat, lng: northeast.lng },
-      { lat: southwest.lat, lng: southwest.lng },
-      { lat: northeast.lat, lng: southwest.lng },
-      { lat: northeast.lat, lng: northeast.lng }
-    ];
-
-    compareViewportPolygon = new woosmap.map.Polygon({
-      paths: [rectangle],
-      strokeColor: CONFIG.MAP.COMPARE_POLYGON_STYLE.STROKE_COLOR,
-      strokeOpacity: CONFIG.MAP.COMPARE_POLYGON_STYLE.STROKE_OPACITY,
-      strokeWeight: CONFIG.MAP.COMPARE_POLYGON_STYLE.STROKE_WEIGHT,
-      fillColor: CONFIG.MAP.COMPARE_POLYGON_STYLE.FILL_COLOR,
-      fillOpacity: CONFIG.MAP.COMPARE_POLYGON_STYLE.FILL_OPACITY
-    });
-    compareViewportPolygon.setMap(mapInstance);
+    compareViewportPolygon = drawViewportRectangle(result.geometry.viewport, CONFIG.MAP.COMPARE_POLYGON_STYLE);
   }
 
-  // Clear previous compare marker
-  if (compareDetailsMarker) {
-    compareDetailsMarker.setMap(null);
-    compareDetailsMarker = null;
-  }
+  compareDetailsMarker = createMarker(result.geometry, CONFIG.MAP.COMPARE_MARKER_ICON);
 
-  // Create compare marker (blue)
-  compareDetailsMarker = new woosmap.map.Marker({
-    position: { lat, lng },
-    icon: {
-      url: CONFIG.MAP.COMPARE_MARKER_ICON.URL,
-      scaledSize: new woosmap.map.Size(
-        CONFIG.MAP.COMPARE_MARKER_ICON.SCALED_SIZE.width,
-        CONFIG.MAP.COMPARE_MARKER_ICON.SCALED_SIZE.height
-      )
-    }
-  });
-  compareDetailsMarker.setMap(mapInstance);
-
-  // Fit bounds to show both markers
-  if (detailsMarker) {
-    const mainPos = detailsMarker.getPosition();
+  // Frame both results
+  if (detailsMarker && targetGeometry) {
     const bounds = new woosmap.map.LatLngBounds();
-    bounds.extend({ lat: mainPos.lat(), lng: mainPos.lng() });
-    bounds.extend({ lat, lng });
-    mapInstance.fitBounds(bounds);
+    extendBounds(bounds, targetGeometry);
+    extendBounds(bounds, result.geometry);
+    fitBoundsClamped(bounds);
   }
 }
 

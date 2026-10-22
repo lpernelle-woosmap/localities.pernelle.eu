@@ -1,6 +1,6 @@
 // index.js - Main application entry point
 
-import { isoCountries, buildCountryComponents } from "./countries.js";
+import { isoCountries, buildCountryComponents, flagCode, matchCountryIds } from "./countries.js";
 import { isoLanguages } from "./languages.js";
 import { debounce, parseLatLng } from "./utils.js";
 import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js";
@@ -297,7 +297,7 @@ function refreshCountryRestrictions() {
   const activeCountryList = componentsRestriction.map(
     ({ id, text }) =>
       `<div class="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mr-1 mb-1">
-        <span class="flag-icon flag-icon-${id.toLowerCase()}"></span>
+        <span class="flag-icon flag-icon-${flagCode(id).toLowerCase()}"></span>
         <span>${text}</span>
       </div>`
   );
@@ -392,11 +392,11 @@ function setSelectizeValues(selectId, value) {
  * @param {string|undefined} components - e.g. "country:FR|country:IT"
  */
 function setCountryRestrictions(components) {
-  const codes = (components || "")
+  const ids = matchCountryIds((components || "")
     .split("|")
-    .map(c => c.replace(/^country:/i, "").toUpperCase());
+    .map(c => c.replace(/^country:/i, "").toUpperCase()));
   document.querySelectorAll(".country").forEach(el => {
-    setCountryActive(el, codes.includes(el.dataset.countrycode.toUpperCase()));
+    setCountryActive(el, ids.includes(el.dataset.countrycode.toUpperCase()));
   });
   refreshCountryRestrictions();
 }
@@ -570,7 +570,7 @@ function initUI() {
       const countryList = isoCountries.map(
         ({ id, text }) =>
           `<div class="country flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors" data-countrycode="${id}" data-countrytext="${text}">
-            <span class="flag-icon flag-icon-${id.toLowerCase()}"></span>
+            <span class="flag-icon flag-icon-${flagCode(id).toLowerCase()}"></span>
             <span class="flex-1 text-sm">${text}</span>
             <div class='active-icon-wrapper hidden'>
               <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">

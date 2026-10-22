@@ -4,7 +4,7 @@
 // so the existing modules (api-service.js, environment_select.js, endpoint_select.js)
 // keep working unchanged.
 
-import { isoCountries, buildCountryComponents } from "./countries.js";
+import { isoCountries, buildCountryComponents, flagCode } from "./countries.js";
 import { isoLanguages } from "./languages.js";
 import { debounce } from "./utils.js";
 import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js";
@@ -289,7 +289,7 @@ function refreshCountryPills() {
         refilterUI();
       },
     },
-      `${flagEmoji(c.id)} ${c.text}`,
+      `${flagEmoji(flagCode(c.id))} ${c.text}`,
       h("span", { class: "text-[14px] leading-none" }, "×"),
     );
     cp.insertBefore(pill, addBtn);
@@ -450,7 +450,7 @@ function buildCountriesList(query) {
         buildCountriesList(document.getElementById("country-search").value);
       },
     },
-      h("span", { class: "text-[20px]" }, flagEmoji(c.id)),
+      h("span", { class: "text-[20px]" }, flagEmoji(flagCode(c.id))),
       h("span", { class: "flex-1 text-[15px] text-gray-900" }, c.text),
       h("span", { class: "text-[11px] font-mono text-[#8E8E93]" }, c.id),
       active ? htmlSvg(`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-10" stroke="#00B0FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" /></svg>`) : null,

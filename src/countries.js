@@ -1,7 +1,8 @@
 export const isoCountries = [
     { id: "FR", text: "France" },
     { id: "MC", text: "Monaco" },
-    { id: "GB", text: "United Kingdom", extraCodes: ["JE", "GG", "IM"] }, // + Channel Islands, Isle of Man
+    { id: "GB", text: "GB" },
+    { id: "UK", text: "UK (GB + JE + GG + IM)", codes: ["GB", "JE", "GG", "IM"] }, // GB + Channel Islands + Isle of Man
     { id: "IT", text: "Italy" },
     { id: "DE", text: "Germany" },
     { id: "ES", text: "Spain" },
@@ -24,14 +25,31 @@ export const isoCountries = [
     { id: "SE", text: "Sweden" },
   ];
 
+/** Country codes sent to the API for an entry (defaults to its own id) */
+const codesOf = (id) => isoCountries.find(c => c.id === id)?.codes || [id];
+
+/** ISO code used to display an entry's flag */
+export const flagCode = (id) => codesOf(id)[0];
+
 /**
- * Builds the `components` param, expanding countries that bundle extra codes (e.g. GB + Channel Islands)
- * @param {string[]} ids - Selected country codes
- * @returns {string} e.g. "country:GB|country:JE|country:GG"
+ * Builds the `components` param, expanding grouped entries (e.g. UK = GB + JE + GG + IM)
+ * @param {string[]} ids - Selected entry ids
+ * @returns {string} e.g. "country:GB|country:JE|country:GG|country:IM"
  */
 export function buildCountryComponents(ids) {
-  return ids
-    .flatMap(id => [id, ...(isoCountries.find(c => c.id === id)?.extraCodes || [])])
-    .map(id => `country:${id}`)
+  return [...new Set(ids.flatMap(codesOf))]
+    .map(code => `country:${code}`)
     .join("|");
+}
+
+/**
+ * Maps API country codes back to entry ids, preferring grouped entries when all their codes are present
+ * @param {string[]} codes - e.g. ["GB", "JE", "GG", "IM", "FR"]
+ * @returns {string[]} e.g. ["UK", "FR"]
+ */
+export function matchCountryIds(codes) {
+  const remaining = new Set(codes);
+  const groups = isoCountries.filter(c => c.codes?.every(code => remaining.has(code)));
+  groups.forEach(g => g.codes.forEach(code => remaining.delete(code)));
+  return [...groups.map(g => g.id), ...remaining];
 }

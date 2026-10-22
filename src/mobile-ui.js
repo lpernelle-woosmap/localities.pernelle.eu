@@ -3,6 +3,7 @@
 
 import { escapeHtml, boldMatchedSubstring } from "./utils.js";
 import { deepEqual } from "./diff-utils.js";
+import { flagCode } from "./countries.js";
 
 // ─── tiny createElement helper ────────────────────────────────
 function h(tag, attrs = {}, ...children) {
@@ -64,7 +65,7 @@ export function renderActiveChips({ types, excludedTypes, countries, extended, b
   }, text);
 
   for (const t of types) root.appendChild(chip(t));
-  for (const c of countries) root.appendChild(chip(`${flagEmoji(c.id)} ${c.id}`));
+  for (const c of countries) root.appendChild(chip(`${flagEmoji(flagCode(c.id))} ${c.id}`));
   if (excludedTypes.length) root.appendChild(chip(`-${excludedTypes.length} excl`, "muted"));
   if (extended) root.appendChild(chip("extended"));
   if (bias) root.appendChild(chip("bias"));

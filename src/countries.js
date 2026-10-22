@@ -1,5 +1,6 @@
 export const isoCountries = [
-    { id: "FR", text: "France" },
+    { id: "FR", text: "France (+ DOM-TOM)" }, // the API includes overseas departments in FR
+    { id: "FR-FR", text: "France hexagonale", flag: "FR" }, // API code for mainland France only
     { id: "MC", text: "Monaco" },
     { id: "GB", text: "GB" },
     { id: "UK", text: "UK (GB + JE + GG + IM)", codes: ["GB", "JE", "GG", "IM"] }, // GB + Channel Islands + Isle of Man
@@ -28,8 +29,8 @@ export const isoCountries = [
 /** Country codes sent to the API for an entry (defaults to its own id) */
 const codesOf = (id) => isoCountries.find(c => c.id === id)?.codes || [id];
 
-/** ISO code used to display an entry's flag */
-export const flagCode = (id) => codesOf(id)[0];
+/** ISO code used to display an entry's flag (explicit `flag`, else its first API code) */
+export const flagCode = (id) => isoCountries.find(c => c.id === id)?.flag || codesOf(id)[0];
 
 /**
  * Builds the `components` param, expanding grouped entries (e.g. UK = GB + JE + GG + IM)

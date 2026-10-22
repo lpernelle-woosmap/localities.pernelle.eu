@@ -1,7 +1,7 @@
 export const isoCountries = [
     { id: "FR", text: "France" },
     { id: "MC", text: "Monaco" },
-    { id: "GB", text: "United Kingdom", extraCodes: ["JE", "GG"] }, // + Channel Islands
+    { id: "GB", text: "United Kingdom", extraCodes: ["JE", "GG", "IM"] }, // + Channel Islands, Isle of Man
     { id: "IT", text: "Italy" },
     { id: "DE", text: "Germany" },
     { id: "ES", text: "Spain" },
@@ -14,7 +14,6 @@ export const isoCountries = [
     { id: "BR", text: "Brazil" },
     { id: "PT", text: "Portugal" },
     { id: "RE", text: "Reunion" },
-    { id: "IM", text: "Ile de Man" },
     { id: "TW", text: "Taiwan" },
     { id: "DZ", text: "Algeria" },
     { id: "IE", text: "Ireland" },

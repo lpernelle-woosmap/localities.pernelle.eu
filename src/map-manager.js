@@ -44,8 +44,13 @@ export function initializeMap(container) {
 
 /**
  * Computes the haversine distance between two points in meters
+ * @param {number} lat1
+ * @param {number} lng1
+ * @param {number} lat2
+ * @param {number} lng2
+ * @returns {number} Distance in meters
  */
-function metersBetween(lat1, lng1, lat2, lng2) {
+export function metersBetween(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const toRad = (d) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);

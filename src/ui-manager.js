@@ -21,13 +21,19 @@ function copyButton(value, title = "Copy") {
 }
 
 /**
- * Returns HTML for a copy-to-clipboard button for coordinates
+ * Returns HTML for the coordinates actions: nearby search and copy-to-clipboard
  * @param {string|number} lat
  * @param {string|number} lng
  * @returns {string} HTML string
  */
 function coordsCopyButton(lat, lng) {
-  return copyButton(`${lat},${lng}`, "Copy coordinates");
+  const nearbyButton = `<button class="nearby-btn absolute top-2 right-9 p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors" data-lat="${escapeHtml(String(lat))}" data-lng="${escapeHtml(String(lng))}" title="Nearby search around these coordinates">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/>
+      <circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/>
+    </svg>
+  </button>`;
+  return nearbyButton + copyButton(`${lat},${lng}`, "Copy coordinates");
 }
 
 /**
@@ -395,6 +401,7 @@ export function displayLocationDetails(result) {
   }
 
   attachCopyListeners(detailsHTML);
+  attachNearbyListeners(detailsHTML);
 
   // Attach click listeners for address buttons
   if (result.addresses?.list?.length > 0) {
@@ -808,6 +815,7 @@ export function displayComparisonDetails(mainResult, compareResult, diff, mainLa
   }
 
   attachCopyListeners(detailsHTML);
+  attachNearbyListeners(detailsHTML);
 
   // Attach click listeners for address buttons
   if (mainResult.addresses?.list?.length > 0) {
@@ -906,6 +914,32 @@ function attachAddressButtonListeners(container) {
       }
     });
   });
+}
+
+/**
+ * Attaches click listeners to nearby buttons within a container
+ * @param {HTMLElement} container
+ */
+function attachNearbyListeners(container) {
+  container.querySelectorAll(".nearby-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const latlng = { lat: Number(btn.getAttribute("data-lat")), lng: Number(btn.getAttribute("data-lng")) };
+      if (_onNearbyClick) {
+        _onNearbyClick(latlng);
+      }
+    });
+  });
+}
+
+/** @type {Function|null} callback for nearby button clicks */
+let _onNearbyClick = null;
+
+/**
+ * Registers a callback for when a nearby button is clicked
+ * @param {Function} callback - Called with ({lat, lng})
+ */
+export function onNearbyClick(callback) {
+  _onNearbyClick = callback;
 }
 
 /** @type {Function|null} callback for address button clicks */

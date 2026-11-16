@@ -111,12 +111,13 @@ function buildApiArgs({ input, components, types, excluded_types, extended, loca
  * Throws on non-OK responses so callers can distinguish failure from empty results.
  * @param {string} url - API URL
  * @param {boolean} showErrors - Whether to show error modal
+ * @param {Object} headers - Extra request headers
  * @returns {Promise} API response
  */
-async function fetchApi(url, showErrors = false) {
+async function fetchApi(url, showErrors = false, headers = {}) {
   let response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, { headers });
   } catch (err) {
     if (showErrors) {
       showErrorModal(err.message || "A network error occurred.");
@@ -234,4 +235,36 @@ export async function reverseGeocode(latlng, components, types, excluded_types, 
   const url = `${env.url}geocode/?${buildQueryString(args)}`;
   trackRequest(url, !compareEnv);
   return fetchApi(url, false);
+}
+
+/**
+ * Searches points of interest around coordinates (target environment only)
+ * @param {Object} params
+ * @param {{lat: number, lng: number}} params.location - Center of the search circle
+ * @param {string} params.types - Pipe-separated POI types (required by the API)
+ * @param {string} [params.excluded_types] - Pipe-separated POI types to exclude
+ * @param {number} [params.page] - Page to fetch
+ * @returns {Promise} API response ({results, pagination})
+ */
+export async function nearbySearch({ location, types, excluded_types, page = 1 }) {
+  const env = getTargetEnvironment();
+  const lang = getLanguage();
+  const args = {
+    key: env.woosmap_key,
+    location: `${location.lat},${location.lng}`,
+    types
+  };
+
+  if (excluded_types) {
+    args.excluded_types = excluded_types;
+  }
+
+  if (page > 1) {
+    args.page = page;
+  }
+
+  const url = `${env.url}nearby/?${buildQueryString(args)}`;
+  trackRequest(url, true);
+  // Nearby takes the language as a header, not as a query param
+  return fetchApi(url, false, lang ? { "Accept-Language": lang } : {});
 }

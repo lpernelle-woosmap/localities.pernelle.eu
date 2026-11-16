@@ -5,10 +5,11 @@ import { isoLanguages } from "./languages.js";
 import { debounce, parseLatLng } from "./utils.js";
 import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js";
 import { initializeMap, getMap, displayLocationOnMap, displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener, showBiasCircle, hideBiasCircle, getBiasRadius } from "./map-manager.js";
-import { renderSearchResults, renderSearchError, displayLocationDetails, displayComparisonDetails, displayCompareErrorBanner, hideSearchResults, clearSearchResults, onAddressClick, renderCoordinatesSuggestion } from "./ui-manager.js";
+import { renderSearchResults, renderSearchError, displayLocationDetails, displayComparisonDetails, displayCompareErrorBanner, hideSearchResults, clearSearchResults, onAddressClick, onNearbyClick, renderCoordinatesSuggestion } from "./ui-manager.js";
 import { computeDiff, coordinatesDiffer, viewportDiffers } from "./diff-utils.js";
 import { getCompareEnvironment, getTargetLabel, getCompareLabel, isCompareSameAsTarget, setTargetEnvironment } from "./environment_select.js";
 import { initRequestModal } from "./request-modal.js";
+import { initNearbyModal } from "./nearby-modal.js";
 import { CONFIG } from "./config.js";
 
 // Application state
@@ -634,3 +635,4 @@ onAddressClick((publicId) => requestDetails(publicId));
 // Initialize UI when ready
 initUI();
 initRequestModal(applyRequest);
+onNearbyClick(initNearbyModal({ getFilters: getRestrictions, onSelect: requestDetails }));

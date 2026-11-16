@@ -16,7 +16,7 @@ Outil de test interne pour l'API Woosmap Localities. Permet de comparer les repo
 |---------|------|
 | `index.html` | Layout 3 panneaux, formulaire de controles |
 | `src/index.js` | Orchestrateur principal, event listeners, `requestDetails()`, `performSearch()` |
-| `src/api-service.js` | Appels API (`autocompleteSearch`, `getDetails`, `reverseGeocode`) |
+| `src/api-service.js` | Appels API (`autocompleteSearch`, `getDetails`, `reverseGeocode`, `nearbySearch`) |
 | `src/ui-manager.js` | Rendu HTML des resultats et details, comparaison dev/prod |
 | `src/map-manager.js` | Gestion carte, markers (dev=rouge, prod=bleu), polygons viewport |
 | `src/diff-utils.js` | Comparaison profonde des reponses API (`computeDiff`, `deepEqual`) |
@@ -27,6 +27,7 @@ Outil de test interne pour l'API Woosmap Localities. Permet de comparer les repo
 | `src/countries.js` | Liste ISO pays + `buildCountryComponents()` (UK = GB+JE+GG+IM ; FR inclut les DOM-TOM cote API, FR-FR = hexagone seul) |
 | `src/request-url.js` | Export/import d'URL de requete (`maskApiKey`, `parseRequestUrl`), cles jamais exposees |
 | `src/request-modal.js` | Modale "Request URL" : copie de la derniere requete cible, collage + rejeu via `applyRequest()` |
+| `src/nearby-modal.js` | Modale "Nearby" : `localities/nearby` autour des coordonnees d'un detail (bouton a cote de la copie), clic sur un resultat = `requestDetails()` |
 | `src/utils.js` | `buildQueryString`, `debounce`, `escapeHtml`, `boldMatchedSubstring` |
 | `mobile.html` | Entree mobile : carte + bottom sheet (recherche/resultats/detail), pages plein ecran (filtres, pays, langue), sheets compacts (env, endpoint, Request URL) |
 | `src/mobile-app.js` | Orchestrateur mobile : etat, recherche/details/compare, rejeu d'URL, pickers |

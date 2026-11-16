@@ -3,6 +3,7 @@
 import { escapeHtml, boldMatchedSubstring } from "./utils.js";
 import { getTargetEnpoint } from "./endpoint_select.js";
 import { deepEqual } from "./diff-utils.js";
+import { renderAdditionalInfoContent } from "./additional-info.js";
 
 /**
  * Returns HTML for a copy-to-clipboard button
@@ -379,6 +380,8 @@ export function displayLocationDetails(result) {
     }
   }
 
+  parts.push(renderAdditionalInfoNormal(result.additional_info));
+
   // Addresses list (clickable buttons for sub-addresses)
   if (result.addresses?.list?.length > 0) {
     parts.push(renderAddressesList(result.addresses));
@@ -661,6 +664,58 @@ function renderAddressComponentsNormal(components) {
 }
 
 /**
+ * Renders the additional info section (transit lines, ...) normally (no diff)
+ * @param {Object} info - result.additional_info
+ * @returns {string} HTML string
+ */
+function renderAdditionalInfoNormal(info) {
+  const content = renderAdditionalInfoContent(info);
+  if (!content) return "";
+
+  return `
+    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+      <div class="text-xs text-gray-700 font-medium uppercase mb-2">Additional Info</div>
+      ${content}
+    </div>
+  `;
+}
+
+/**
+ * Renders additional info comparison: one block per environment when they differ
+ * @param {Object} infoDiff - Diff entry for additional_info field
+ * @param {string} mainLabel - Display name of main environment
+ * @param {string} compareLabel - Display name of compare environment
+ * @returns {string} HTML string
+ */
+function renderAdditionalInfoComparison(infoDiff, mainLabel, compareLabel) {
+  if (!infoDiff) return "";
+  if (infoDiff.status === "same") return renderAdditionalInfoNormal(infoDiff.devValue);
+
+  const highlightClasses = {
+    changed: "bg-yellow-50 border-yellow-300",
+    added: "bg-green-50 border-green-300",
+    removed: "bg-red-50 border-red-300"
+  };
+  const absent = '<span class="text-sm text-gray-400 italic">absent</span>';
+  const side = (label, colorClass, info) => `
+    <div>
+      <div class="text-xs font-semibold ${colorClass} mb-1">${escapeHtml(label)}</div>
+      ${renderAdditionalInfoContent(info) || absent}
+    </div>
+  `;
+
+  return `
+    <div class="p-3 rounded-lg border ${highlightClasses[infoDiff.status] || ""}">
+      <div class="text-xs text-gray-700 font-medium uppercase mb-2">Additional Info</div>
+      <div class="space-y-3">
+        ${side(mainLabel, "text-red-700", infoDiff.devValue)}
+        ${side(compareLabel, "text-blue-700", infoDiff.prodValue)}
+      </div>
+    </div>
+  `;
+}
+
+/**
  * Displays comparison details between two environment results
  * @param {Object} mainResult - Result from main environment
  * @param {Object} compareResult - Result from compare environment
@@ -736,6 +791,9 @@ export function displayComparisonDetails(mainResult, compareResult, diff, mainLa
 
   // Address components
   parts.push(renderAddressComponentsComparison(diff.fields.address_components, mainLabel, compareLabel));
+
+  // Additional info (transit lines, ...)
+  parts.push(renderAdditionalInfoComparison(diff.fields.additional_info, mainLabel, compareLabel));
 
   // Addresses list (from main result)
   if (mainResult.addresses?.list?.length > 0) {

@@ -4,6 +4,7 @@
 import { escapeHtml, boldMatchedSubstring } from "./utils.js";
 import { deepEqual } from "./diff-utils.js";
 import { flagCode } from "./countries.js";
+import { renderAdditionalInfoContent } from "./additional-info.js";
 
 // ─── tiny createElement helper ────────────────────────────────
 export function h(tag, attrs = {}, ...children) {
@@ -333,6 +334,7 @@ export function renderDetail(result, env, { role = "target", tabs, compareWith, 
   if (compareError) content.appendChild(errorBanner(compareError, `${envLabel(compareWith, "compare")} request failed`, "No comparison available."));
   if (result.geometry) content.appendChild(detailCoordinates(result.geometry));
   if (result.address_components?.length) content.appendChild(detailAddressComponents(result.address_components));
+  content.appendChild(additionalInfoSection(result.additional_info));
   if (result.addresses?.list?.length) content.appendChild(addressesList(result.addresses, onAddressClick));
 
   const actionBar = document.getElementById("sheet-action-bar");
@@ -440,6 +442,40 @@ function componentRow(type, valueEl, hasBorder, highlighted = false) {
 }
 
 /**
+ * additional_info of a result (transit lines, ...); empty fragment when there is nothing to show
+ */
+function additionalInfoSection(info, title = "Additional info", titleColor = "#8E8E93") {
+  const html = renderAdditionalInfoContent(info);
+  if (!html) return document.createDocumentFragment();
+  return h("div", { class: "mx-4 mb-2.5 rounded-xl bg-[#F7F7F9] px-3.5 pt-2.5 pb-3" },
+    h("div", { class: "text-[10px] font-bold tracking-wider uppercase mb-1.5", style: { color: titleColor } }, title),
+    h("div", { html }),
+  );
+}
+
+/**
+ * additional_info in the compare view: one block when identical, one per environment otherwise
+ */
+function additionalInfoDiffSection(infoDiff, target, compare) {
+  if (infoDiff.status === "same") return additionalInfoSection(infoDiff.devValue);
+  const root = h("div", { class: "mt-3" });
+  const sides = [
+    [infoDiff.devValue, envLabel(target), ENV_COLORS[target]],
+    [infoDiff.prodValue, envLabel(compare, "compare"), ENV_COLORS[compare]],
+  ];
+  for (const [info, label, color] of sides) {
+    const title = `additional_info · ${label}`;
+    const section = additionalInfoSection(info, title, color);
+    root.appendChild(section.childNodes.length ? section : flatRowAbsent(title));
+  }
+  return root;
+}
+
+function flatRowAbsent(title) {
+  return h("div", { class: "mx-4 mb-2.5 rounded-xl bg-[#F7F7F9] px-3.5 py-2.5 text-[12px] text-[#8E8E93]" }, `${title} · absent`);
+}
+
+/**
  * Sub-addresses of a locality (result.addresses.list), tappable to load their details
  */
 function addressesList(addresses, onAddressClick) {
@@ -481,6 +517,7 @@ export function renderCompareDetail(devResult, prodResult, diff, target, compare
   content.appendChild(flatFields(diff, target, compare));
   if (diff.fields.geometry) content.appendChild(geometrySection(diff.fields.geometry, target, compare));
   if (diff.fields.address_components) content.appendChild(addressComponentsSection(diff.fields.address_components));
+  if (diff.fields.additional_info) content.appendChild(additionalInfoDiffSection(diff.fields.additional_info, target, compare));
   if (devResult.addresses?.list?.length) content.appendChild(addressesList(devResult.addresses, onAddressClick));
 
   const actionBar = document.getElementById("sheet-action-bar");

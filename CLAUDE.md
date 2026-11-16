@@ -20,6 +20,7 @@ Outil de test interne pour l'API Woosmap Localities. Permet de comparer les repo
 | `src/ui-manager.js` | Rendu HTML des resultats et details, comparaison dev/prod |
 | `src/map-manager.js` | Gestion carte, markers (dev=rouge, prod=bleu), polygons viewport |
 | `src/diff-utils.js` | Comparaison profonde des reponses API (`computeDiff`, `deepEqual`) |
+| `src/additional-info.js` | Rendu de `result.additional_info` : lignes de transport (badge couleur, mode, `route_type`, headsigns), autres cles en brut ; partage desktop/mobile |
 | `src/config.js` | Constantes (zoom levels, styles markers/polygons, cles API) |
 | `src/environment_select.js` | Gestion des 3 envs : `prod`, `dev`, `pr` (URL dynamique pour PR) |
 | `src/endpoint_select.js` | Selecteur endpoint : `autocomplete`, `search`, `geocode` |

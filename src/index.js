@@ -4,7 +4,7 @@ import { isoCountries, buildCountryComponents, flagCode, matchCountryIds } from 
 import { isoLanguages } from "./languages.js";
 import { debounce, parseLatLng } from "./utils.js";
 import { autocompleteSearch, getDetails, reverseGeocode } from "./api-service.js";
-import { initializeMap, getMap, displayLocationOnMap, displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener, showBiasCircle, hideBiasCircle, getBiasRadius } from "./map-manager.js";
+import { initializeMap, getMap, displayLocationOnMap, displayCompareLocationOnMap, clearCompareLocationFromMap, addMapClickListener, showBiasCircle, hideBiasCircle, getBiasRadius, displayNearbyMarkers, clearNearbyMarkers } from "./map-manager.js";
 import { renderSearchResults, renderSearchError, displayLocationDetails, displayComparisonDetails, displayCompareErrorBanner, hideSearchResults, clearSearchResults, onAddressClick, onNearbyClick, renderCoordinatesSuggestion } from "./ui-manager.js";
 import { computeDiff, coordinatesDiffer, viewportDiffers } from "./diff-utils.js";
 import { getCompareEnvironment, getTargetLabel, getCompareLabel, isCompareSameAsTarget, setTargetEnvironment } from "./environment_select.js";
@@ -196,6 +196,8 @@ async function performSearch() {
  */
 function handleResultClick(predictionId, name) {
   hideSearchResults();
+  // A result picked from a new search starts a new context: drop the nearby markers
+  clearNearbyMarkers();
   const input = document.getElementById("input");
   if (input) {
     input.value = name;
@@ -635,4 +637,13 @@ onAddressClick((publicId) => requestDetails(publicId));
 // Initialize UI when ready
 initUI();
 initRequestModal(applyRequest);
-onNearbyClick(initNearbyModal({ getFilters: getRestrictions, onSelect: requestDetails }));
+onNearbyClick(initNearbyModal({
+  getFilters: getRestrictions,
+  getCompare: () => {
+    const env = isCompareSameAsTarget() ? null : getCompareEnvironment();
+    return env ? { env, label: getCompareLabel() } : null;
+  },
+  getTargetLabel,
+  onSelect: requestDetails,
+  onShowOnMap: (items) => displayNearbyMarkers(items, requestDetails)
+}));

@@ -1,4 +1,5 @@
-// nearby-modal.js - "Nearby" modal: POIs around coordinates (localities/nearby), click one to load its details
+// nearby-modal.js - "Nearby" modal: POIs around coordinates (localities/nearby) on the target and compare
+// environments side by side, click one to load its details
 
 import { nearbySearch } from "./api-service.js";
 import { metersBetween } from "./map-manager.js";
@@ -34,9 +35,10 @@ function formatDistance(meters) {
 /**
  * @param {Object} item - Nearby result
  * @param {{lat: number, lng: number}} center - Search center
+ * @param {string|null} onlyLabel - Environment label when the other environment does not return this result
  * @returns {string} HTML string
  */
-function renderItem(item, center) {
+function renderItem(item, center, onlyLabel) {
   const location = item.geometry?.location;
   const distance = location
     ? `<span class="text-xs text-gray-500 font-mono shrink-0">${formatDistance(metersBetween(center.lat, center.lng, location.lat, location.lng))}</span>`
@@ -46,17 +48,20 @@ function renderItem(item, center) {
     : "";
   const badges = (item.types || [])
     .filter(type => type !== DEFAULT_TYPE)
-    .map(type => `<span class="text-[11px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">${escapeHtml(type)}</span>`)
-    .join("");
+    .map(type => `<span class="text-[11px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">${escapeHtml(type)}</span>`);
+  if (onlyLabel) {
+    badges.push(`<span class="text-[11px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">${escapeHtml(onlyLabel)} only</span>`);
+  }
+  const tone = onlyLabel ? "border-amber-300 bg-amber-50" : "border-gray-200";
 
   return `
-    <button type="button" class="nearby-item w-full text-left px-3 py-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors" data-public-id="${escapeHtml(item.public_id)}">
+    <button type="button" class="nearby-item w-full text-left px-3 py-2 rounded-lg border ${tone} hover:bg-blue-50 hover:border-blue-300 transition-colors" data-public-id="${escapeHtml(item.public_id)}">
       <div class="flex items-start justify-between gap-3">
         <div class="text-sm text-gray-900 font-medium min-w-0 break-words">${escapeHtml(item.name || item.public_id)}</div>
         ${distance}
       </div>
       ${address}
-      ${badges ? `<div class="flex flex-wrap gap-1 mt-1">${badges}</div>` : ""}
+      ${badges.length > 0 ? `<div class="flex flex-wrap gap-1 mt-1">${badges.join("")}</div>` : ""}
     </button>
   `;
 }
@@ -75,53 +80,115 @@ function renderError(error) {
 }
 
 /**
- * Wires the nearby modal
+ * Renders one environment column
+ * @param {HTMLElement} list - Column container
+ * @param {{response?: Object, error?: Error}} outcome - Request outcome of this environment
+ * @param {Set<string>|null} otherIds - public_ids returned by the other environment (null: no comparison)
+ * @param {{center: Object}} state - Modal state
+ * @param {string} label - Environment label
+ */
+function renderColumn(list, outcome, otherIds, state, label) {
+  if (outcome.error) {
+    list.innerHTML = renderError(outcome.error);
+    return;
+  }
+  const results = outcome.response?.results || [];
+  list.innerHTML = results.length > 0
+    ? results.map(item => renderItem(item, state.center, otherIds && !otherIds.has(item.public_id) ? label : null)).join("")
+    : '<div class="text-sm text-gray-500 py-6 text-center">No result around these coordinates.</div>';
+}
+
+/**
+ * @param {{response?: Object, error?: Error}} outcome - Request outcome of an environment
+ * @returns {Set<string>|null} Returned public_ids, or null when the request failed (nothing to compare with)
+ */
+function resultIds(outcome) {
+  return outcome.error ? null : new Set((outcome.response?.results || []).map(item => item.public_id));
+}
+
+/**
+ * Lists the results of the page for the map, each tagged with the environments returning it
+ * @param {{response?: Object, error?: Error}} target - Target environment outcome
+ * @param {{response?: Object, error?: Error}|null} compare - Compare environment outcome, if any
+ * @returns {Array<{result: Object, kind: string}>} kind: "target" or "compare" (one env only), else "both"
+ */
+export function mapItems(target, compare) {
+  const targetIds = resultIds(target);
+  const compareIds = compare ? resultIds(compare) : null;
+  const tag = (outcome, otherIds, side) => (outcome?.response?.results || [])
+    .map(result => ({ result, kind: otherIds && !otherIds.has(result.public_id) ? side : "both" }));
+
+  return [
+    ...tag(target, compareIds, "target"),
+    // Results of both environments are already listed from the target side
+    ...tag(compare, targetIds, "compare").filter(({ kind }) => kind === "compare" || !targetIds)
+  ];
+}
+
+/**
+ * Wires the nearby modal: target environment on the left, compare environment on the right
  * @param {Object} options
  * @param {Function} options.getFilters - Returns the controls panel filters ({types, excluded_types})
+ * @param {Function} options.getCompare - Returns {env, label} of the compare environment, or null when there is none
+ * @param {Function} options.getTargetLabel - Returns the target environment label
  * @param {Function} options.onSelect - Called with the public_id of the clicked result
- * @returns {Function} open({lat, lng}): runs the nearby request and shows the modal
+ * @param {Function} options.onShowOnMap - Called with the results of the page (see mapItems)
+ * @returns {Function} open({lat, lng}): runs the nearby requests and shows the modal
  */
-export function initNearbyModal({ getFilters, onSelect }) {
-  const modal = document.getElementById("nearby-modal");
-  const summary = document.getElementById("nearby-summary");
-  const list = document.getElementById("nearby-results");
-  const pageLabel = document.getElementById("nearby-page");
-  const previousBtn = document.getElementById("nearby-previous");
-  const nextBtn = document.getElementById("nearby-next");
-  if (!modal || !summary || !list || !pageLabel || !previousBtn || !nextBtn) return () => {};
+export function initNearbyModal({ getFilters, getCompare, getTargetLabel, onSelect, onShowOnMap }) {
+  const el = Object.fromEntries([
+    ["modal", "nearby-modal"], ["summary", "nearby-summary"], ["columns", "nearby-columns"],
+    ["targetLabel", "nearby-target-label"], ["targetList", "nearby-results"],
+    ["compareColumn", "nearby-compare-column"], ["compareLabel", "nearby-compare-label"], ["compareList", "nearby-results-compare"],
+    ["page", "nearby-page"], ["previous", "nearby-previous"], ["next", "nearby-next"], ["showMap", "nearby-show-map"]
+  ].map(([name, id]) => [name, document.getElementById(id)]));
+  if (Object.values(el).some(node => !node)) return () => {};
 
-  /** @type {{center: Object, types: string, excluded_types: string, previous: number|null, next: number|null}|null} */
+  /** @type {{center: Object, types: string, excluded_types: string, compare: Object|null, targetLabel: string, page: number, hasNext: boolean}|null} */
   let state = null;
-  // Ignores the response of a request superseded by a newer one
+  // Ignores the responses of requests superseded by newer ones
   let requestId = 0;
+  /** @type {Array<{result: Object, kind: string}>} Results of the displayed page, for the map */
+  let pageItems = [];
 
-  const close = () => modal.classList.add("hidden");
+  const setPageItems = (items) => {
+    pageItems = items;
+    el.showMap.disabled = items.length === 0;
+  };
 
-  const setPagination = (page, pagination) => {
-    state.previous = pagination?.previous_page ?? null;
-    state.next = pagination?.next_page ?? null;
-    pageLabel.textContent = `Page ${page}`;
-    previousBtn.disabled = state.previous == null;
-    nextBtn.disabled = state.next == null;
+  const close = () => el.modal.classList.add("hidden");
+
+  const setPagination = (page, hasNext) => {
+    state.page = page;
+    state.hasNext = hasNext;
+    el.page.textContent = `Page ${page}`;
+    el.previous.disabled = page <= 1;
+    el.next.disabled = !hasNext;
   };
 
   const loadPage = async (page) => {
     const currentRequest = ++requestId;
-    list.innerHTML = '<div class="text-sm text-gray-500 py-6 text-center">Loading…</div>';
-    setPagination(page, null);
+    const loading = '<div class="text-sm text-gray-500 py-6 text-center">Loading…</div>';
+    el.targetList.innerHTML = loading;
+    el.compareList.innerHTML = loading;
+    setPagination(page, false);
+    setPageItems([]);
 
-    try {
-      const response = await nearbySearch({ location: state.center, types: state.types, excluded_types: state.excluded_types, page });
-      if (currentRequest !== requestId) return;
-      const results = response?.results || [];
-      list.innerHTML = results.length > 0
-        ? results.map(item => renderItem(item, state.center)).join("")
-        : '<div class="text-sm text-gray-500 py-6 text-center">No result around these coordinates.</div>';
-      setPagination(page, response?.pagination);
-    } catch (error) {
-      if (currentRequest !== requestId) return;
-      list.innerHTML = renderError(error);
+    const params = { location: state.center, types: state.types, excluded_types: state.excluded_types, page };
+    const settle = (promise) => promise.then(response => ({ response }), error => ({ error }));
+    const [target, compare] = await Promise.all([
+      settle(nearbySearch(params)),
+      state.compare ? settle(nearbySearch(params, state.compare.env)) : null
+    ]);
+    if (currentRequest !== requestId) return;
+
+    renderColumn(el.targetList, target, compare && resultIds(compare), state, state.targetLabel);
+    if (compare) {
+      renderColumn(el.compareList, compare, resultIds(target), state, state.compare.label);
     }
+    setPageItems(mapItems(target, compare));
+    // Both columns share the page number: Next stays available while either environment has more
+    setPagination(page, [target, compare].some(outcome => outcome?.response?.pagination?.next_page != null));
   };
 
   const open = (center) => {
@@ -130,23 +197,33 @@ export function initNearbyModal({ getFilters, onSelect }) {
       center,
       types: filterNearbyTypes(filters.types) || DEFAULT_TYPE,
       excluded_types: filterNearbyTypes(filters.excluded_types),
-      previous: null,
-      next: null
+      compare: getCompare(),
+      targetLabel: getTargetLabel(),
+      page: 1,
+      hasNext: false
     };
     const excluded = state.excluded_types ? ` · excluded: ${state.excluded_types.replaceAll("|", ", ")}` : "";
-    summary.textContent = `Around ${center.lat}, ${center.lng} · types: ${state.types.replaceAll("|", ", ")}${excluded}`;
-    modal.classList.remove("hidden");
+    el.summary.textContent = `Around ${center.lat}, ${center.lng} · types: ${state.types.replaceAll("|", ", ")}${excluded}`;
+    el.targetLabel.textContent = state.targetLabel;
+    el.compareLabel.textContent = state.compare?.label || "";
+    el.compareColumn.classList.toggle("hidden", !state.compare);
+    el.columns.classList.toggle("grid-cols-2", Boolean(state.compare));
+    el.modal.classList.remove("hidden");
     loadPage(1);
   };
 
-  list.addEventListener("click", (event) => {
+  el.columns.addEventListener("click", (event) => {
     const item = event.target.closest(".nearby-item");
     if (!item) return;
     close();
     onSelect(item.getAttribute("data-public-id"));
   });
-  previousBtn.addEventListener("click", () => state?.previous != null && loadPage(state.previous));
-  nextBtn.addEventListener("click", () => state?.next != null && loadPage(state.next));
+  el.showMap.addEventListener("click", () => {
+    close();
+    onShowOnMap(pageItems);
+  });
+  el.previous.addEventListener("click", () => state && state.page > 1 && loadPage(state.page - 1));
+  el.next.addEventListener("click", () => state?.hasNext && loadPage(state.page + 1));
   document.getElementById("nearby-modal-close")?.addEventListener("click", close);
   document.getElementById("nearby-modal-backdrop")?.addEventListener("click", close);
   document.addEventListener("keydown", (e) => {

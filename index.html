@@ -354,7 +354,7 @@
   <div id="nearby-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
     <div id="nearby-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50"></div>
     <div class="relative flex items-center justify-center min-h-screen px-4 pointer-events-none">
-      <div class="bg-white rounded-lg shadow-xl max-w-xl w-full p-6 pointer-events-auto">
+      <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full p-6 pointer-events-auto">
         <div class="flex items-start justify-between mb-1">
           <h3 class="text-lg font-semibold text-gray-900">Nearby</h3>
           <button id="nearby-modal-close" class="text-gray-400 hover:text-gray-600">
@@ -364,12 +364,26 @@
           </button>
         </div>
         <p id="nearby-summary" class="text-xs text-gray-500 mb-3 break-words"></p>
-        <div id="nearby-results" class="space-y-2 max-h-[60vh] overflow-y-auto"></div>
+        <div id="nearby-columns" class="grid grid-cols-2 gap-4">
+          <div class="min-w-0">
+            <div id="nearby-target-label" class="text-xs font-semibold text-red-700 uppercase mb-2"></div>
+            <div id="nearby-results" class="space-y-2 max-h-[60vh] overflow-y-auto"></div>
+          </div>
+          <div id="nearby-compare-column" class="min-w-0">
+            <div id="nearby-compare-label" class="text-xs font-semibold text-blue-700 uppercase mb-2"></div>
+            <div id="nearby-results-compare" class="space-y-2 max-h-[60vh] overflow-y-auto"></div>
+          </div>
+        </div>
         <div class="mt-4 flex items-center justify-between">
           <button type="button" id="nearby-previous" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             Previous
           </button>
-          <span id="nearby-page" class="text-xs text-gray-500"></span>
+          <div class="flex items-center gap-3">
+            <span id="nearby-page" class="text-xs text-gray-500"></span>
+            <button type="button" id="nearby-show-map" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              Show page results on map
+            </button>
+          </div>
           <button type="button" id="nearby-next" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             Next
           </button>

@@ -39,6 +39,11 @@ export const CONFIG = {
       FILL_COLOR: "#1565C0",
       FILL_OPACITY: 0.3
     },
+    // Nearby results shown on the map: one env only = that env color, both envs = green
+    NEARBY_MARKER: {
+      COLORS: { target: "#b71c1c", compare: "#1565C0", both: "#2e7d32" },
+      SCALED_SIZE: { height: 30, width: 30 }
+    },
     BIAS_CIRCLE_STYLE: {
       STROKE_COLOR: "#7c3aed",
       STROKE_OPACITY: 0.8,

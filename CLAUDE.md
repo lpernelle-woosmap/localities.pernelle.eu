@@ -27,7 +27,7 @@ Outil de test interne pour l'API Woosmap Localities. Permet de comparer les repo
 | `src/countries.js` | Liste ISO pays + `buildCountryComponents()` (UK = GB+JE+GG+IM ; FR inclut les DOM-TOM cote API, FR-FR = hexagone seul) |
 | `src/request-url.js` | Export/import d'URL de requete (`maskApiKey`, `parseRequestUrl`), cles jamais exposees |
 | `src/request-modal.js` | Modale "Request URL" : copie de la derniere requete cible, collage + rejeu via `applyRequest()` |
-| `src/nearby-modal.js` | Modale "Nearby" : `localities/nearby` autour des coordonnees d'un detail (bouton a cote de la copie), clic sur un resultat = `requestDetails()` |
+| `src/nearby-modal.js` | Modale "Nearby" : `localities/nearby` autour des coordonnees d'un detail (bouton a cote de la copie), resultats cible a gauche / compare a droite, clic sur un resultat = `requestDetails()`, bouton pour afficher la page sur la carte |
 | `src/utils.js` | `buildQueryString`, `debounce`, `escapeHtml`, `boldMatchedSubstring` |
 | `mobile.html` | Entree mobile : carte + bottom sheet (recherche/resultats/detail), pages plein ecran (filtres, pays, langue), sheets compacts (env, endpoint, Request URL) |
 | `src/mobile-app.js` | Orchestrateur mobile : etat, recherche/details/compare, rejeu d'URL, pickers |
@@ -53,6 +53,7 @@ Outil de test interne pour l'API Woosmap Localities. Permet de comparer les repo
 - XSS protection : toujours utiliser `escapeHtml()` pour le contenu dynamique
 - Styles : classes Tailwind inline dans le JS (pas de CSS custom)
 - Markers carte : dev/PR = rouge (`dot-marker.png`), prod = bleu (SVG data-URI)
+- Markers nearby (`displayNearbyMarkers`) : cible seule = rouge, compare seul = bleu, les deux = vert ; cliquables (details), conserves a l'affichage d'un details
 - Polygons viewport : dev = rouge `#b71c1c`, prod = bleu `#1565C0`
 - Langue par defaut : `fr` (overridable via query param `?language=`)
 

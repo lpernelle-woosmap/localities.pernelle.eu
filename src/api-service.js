@@ -238,16 +238,17 @@ export async function reverseGeocode(latlng, components, types, excluded_types, 
 }
 
 /**
- * Searches points of interest around coordinates (target environment only)
+ * Searches points of interest around coordinates
  * @param {Object} params
  * @param {{lat: number, lng: number}} params.location - Center of the search circle
  * @param {string} params.types - Pipe-separated POI types (required by the API)
  * @param {string} [params.excluded_types] - Pipe-separated POI types to exclude
  * @param {number} [params.page] - Page to fetch
+ * @param {Object|null} compareEnv - Environment config to use (defaults to target environment)
  * @returns {Promise} API response ({results, pagination})
  */
-export async function nearbySearch({ location, types, excluded_types, page = 1 }) {
-  const env = getTargetEnvironment();
+export async function nearbySearch({ location, types, excluded_types, page = 1 }, compareEnv = null) {
+  const env = compareEnv || getTargetEnvironment();
   const lang = getLanguage();
   const args = {
     key: env.woosmap_key,
@@ -264,7 +265,7 @@ export async function nearbySearch({ location, types, excluded_types, page = 1 }
   }
 
   const url = `${env.url}nearby/?${buildQueryString(args)}`;
-  trackRequest(url, true);
+  trackRequest(url, !compareEnv);
   // Nearby takes the language as a header, not as a query param
   return fetchApi(url, false, lang ? { "Accept-Language": lang } : {});
 }

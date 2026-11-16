@@ -13,6 +13,7 @@ let viewportPolygon = null;
 let compareDetailsMarker = null;
 let compareViewportPolygon = null;
 let biasCircle = null;
+let nearbyMarkers = [];
 
 /**
  * Initializes the Woosmap map
@@ -321,6 +322,53 @@ export function clearCompareLocationFromMap() {
     compareViewportPolygon.setMap(null);
     compareViewportPolygon = null;
   }
+}
+
+/**
+ * Builds the pin icon of a nearby marker
+ * @param {string} color - Fill color
+ * @returns {{url: string, scaledSize: Object}} Marker icon
+ */
+function nearbyMarkerIcon(color) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="${color}" stroke="#fff" d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2.5" fill="#fff"/></svg>`;
+  const { width, height } = CONFIG.MAP.NEARBY_MARKER.SCALED_SIZE;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new woosmap.map.Size(width, height)
+  };
+}
+
+/**
+ * Replaces the nearby markers: one clickable pin per result, colored by the environments
+ * returning it, and frames them. They stay on the map when a details result is displayed.
+ * @param {Array<{result: Object, kind: string}>} items - Nearby results; kind is "target", "compare" or "both"
+ * @param {Function} onClick - Called with the public_id of the clicked marker
+ */
+export function displayNearbyMarkers(items, onClick) {
+  if (!mapInstance) return;
+  clearNearbyMarkers();
+
+  const located = items.filter(({ result }) => result.geometry?.location);
+  if (located.length === 0) return;
+
+  const bounds = new woosmap.map.LatLngBounds();
+  nearbyMarkers = located.map(({ result, kind }) => {
+    const position = { lat: result.geometry.location.lat, lng: result.geometry.location.lng };
+    const marker = new woosmap.map.Marker({ position, icon: nearbyMarkerIcon(CONFIG.MAP.NEARBY_MARKER.COLORS[kind]) });
+    marker.setMap(mapInstance);
+    marker.addListener("click", () => onClick(result.public_id));
+    bounds.extend(position);
+    return marker;
+  });
+  fitBoundsClamped(bounds);
+}
+
+/**
+ * Removes the nearby markers from the map
+ */
+export function clearNearbyMarkers() {
+  nearbyMarkers.forEach(marker => marker.setMap(null));
+  nearbyMarkers = [];
 }
 
 /**
